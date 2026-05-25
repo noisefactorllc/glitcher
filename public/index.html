@@ -20,6 +20,16 @@
 
     <link rel="preconnect" href="https://shaders.noisedeck.app" crossorigin>
     <link rel="preconnect" href="https://handfish.noisefactor.io" crossorigin>
+    <link rel="preconnect" href="https://fonts.noisefactor.io" crossorigin>
+
+    <!-- Preload the metric-matched Blank placeholder fonts so handfish's
+         zero-CLS strategy kicks in. Without these, browsers optimize away
+         the Nunito Blank / NotoSansMono Blank fallbacks (they sit at the
+         end of the font stack and get skipped if Nunito loads quickly),
+         and the page reflows when the real fonts arrive. -->
+    <link rel="preload" href="https://fonts.noisefactor.io/fonts/nunito/Nunito-Blank.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://fonts.noisefactor.io/fonts/noto-sans-mono/NotoSansMono-Blank.woff2" as="font" type="font/woff2" crossorigin>
+
     <script type="importmap">
         { "imports": { "handfish": "https://handfish.noisefactor.io/0/handfish.esm.min.js" } }
     </script>
