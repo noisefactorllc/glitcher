@@ -1,6 +1,12 @@
 #app {
     display: grid;
-    grid-template-rows: auto 1fr auto auto auto auto;
+    /* `minmax(0, 1fr)` for the stage row so it absorbs leftover height
+       without being pushed by its grid neighbors. All other rows are
+       `auto` (intrinsic) so any width/height change in the controls only
+       affects the stage's spare space — and `#stack-section` below pins
+       itself to a stable height, so the stage doesn't visibly reflow
+       when the stack grows or shrinks. */
+    grid-template-rows: auto minmax(0, 1fr) auto auto auto auto;
     height: 100dvh;
     width: 100vw;
     overflow: hidden;
@@ -120,7 +126,11 @@
     background: var(--bg-2);
     padding: 8px 16px 10px;
     position: relative;
-    max-height: 36vh;
+    /* Pinned height so canvas above doesn't reflow when GLITCHIFY changes
+       the slot count. The list scrolls internally when the stack overflows. */
+    height: 24vh;
+    min-height: 150px;
+    max-height: 280px;
     overflow-y: auto;
     scrollbar-width: thin;
 }
@@ -224,7 +234,12 @@
     .title { font-size: 18px; }
     .bottom-left { gap: 4px; }
     #glitchify-row { gap: 8px; padding: 8px 12px; }
-    #stack-section { padding: 8px 12px 10px; max-height: 40vh; }
+    #stack-section {
+        padding: 8px 12px 10px;
+        height: 28vh;
+        min-height: 140px;
+        max-height: 340px;
+    }
     .starter-rail-wrap { padding: 8px 12px; }
     #bottom-bar {
         grid-template-columns: 1fr auto 1fr;

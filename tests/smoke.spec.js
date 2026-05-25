@@ -7,13 +7,28 @@ const MIN_PNG = Buffer.from(
 )
 
 test.describe('Glitcher smoke', () => {
+    // Each test starts with a clean stack. Guarded by a sessionStorage
+    // flag so the clear only happens on the FIRST navigation of the test
+    // — otherwise an in-test reload would wipe the data we want to verify
+    // got persisted. sessionStorage is per-context, so each test starts
+    // with the flag unset.
+    test.beforeEach(async ({ page }) => {
+        await page.addInitScript(() => {
+            if (!sessionStorage.getItem('__glitcher_test_cleared__')) {
+                try { localStorage.clear() } catch {}
+                sessionStorage.setItem('__glitcher_test_cleared__', '1')
+            }
+        })
+    })
+
     test('boots, loads default stack, switches starter, captures a photo', async ({ page }) => {
         await page.goto('/')
 
         await expect(page.locator('#stage-canvas')).toBeVisible()
 
-        // Default starter (Datamosh) populates the stack on boot
-        await expect(page.locator('.starter-chip')).toHaveCount(10)
+        // Default starter (Datamosh) populates the stack on boot.
+        // `not.toHaveCount(0)` auto-retries until the rail/list render.
+        await expect(page.locator('.starter-chip')).not.toHaveCount(0)
         await expect(page.locator('.stack-slot')).not.toHaveCount(0)
         await page.waitForTimeout(2500)
 
@@ -90,9 +105,8 @@ test.describe('Glitcher smoke', () => {
         await page.waitForTimeout(2500)
         const after = await page.locator('.stack-slot .slot-name').allTextContents()
 
-        // Composition or count should change; running it once shouldn't
-        // produce the exact same list (catalog has 16 effects, GLITCHIFY
-        // picks 2-4 random).
+        // Composition or count should change; catalog has 20+ effects so
+        // GLITCHIFY picking 2-4 random ones shouldn't reproduce the prior list.
         expect(after.join('|')).not.toEqual(before.join('|'))
     })
 
@@ -188,11 +202,95 @@ test.describe('Glitcher smoke', () => {
 
         await page.waitForTimeout(4000)
 
-        // Final stack should match the LAST starter (Static)
-        await expect(page.locator('.stack-slot .slot-name', { hasText: 'Degauss' })).toBeVisible()
+        // Final stack should match the LAST starter (Static = snow + scanlineError + grain)
         await expect(page.locator('.stack-slot .slot-name', { hasText: 'Snow' })).toBeVisible()
+        await expect(page.locator('.stack-slot .slot-name', { hasText: 'Scanline Error' })).toBeVisible()
         // No leftover slots from earlier starters
         await expect(page.locator('.stack-slot .slot-name', { hasText: 'Corrupt' })).toHaveCount(0)
         await expect(page.locator('.stack-slot .slot-name', { hasText: 'CRT' })).toHaveCount(0)
+    })
+
+    test('pointer drag reorders slots', async ({ page }) => {
+        await page.goto('/')
+        await page.waitForTimeout(3000)
+
+        await page.locator('.starter-chip', { hasText: 'Dead Tape' }).click()
+        await page.waitForTimeout(1500)
+
+        const before = await page.locator('.stack-slot .slot-name').allTextContents()
+        const handle = page.locator('.stack-slot').nth(0).locator('.slot-handle')
+        const target = page.locator('.stack-slot').nth(2)
+        const hb = await handle.boundingBox()
+        const tb = await target.boundingBox()
+
+        // Mouse drag: down on handle → small move (triggers drag start at 4px) → target → up
+        await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2)
+        await page.mouse.down()
+        await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2 + 8, { steps: 3 })
+        await page.mouse.move(tb.x + tb.width / 2, tb.y + tb.height * 0.75, { steps: 8 })
+        await page.waitForTimeout(120)
+        await page.mouse.up()
+        await page.waitForTimeout(1500)
+
+        const after = await page.locator('.stack-slot .slot-name').allTextContents()
+        expect(after).not.toEqual(before)
+        // First slot moved to end
+        expect(after[after.length - 1]).toEqual(before[0])
+    })
+
+    test('persistence: stack survives a page reload', async ({ page }) => {
+        await page.goto('/')
+        await page.waitForTimeout(2500)
+
+        await page.locator('.starter-chip', { hasText: 'Slice' }).click()
+        await page.waitForTimeout(1500)
+        const before = await page.locator('.stack-slot .slot-name').allTextContents()
+
+        await page.reload()
+        await page.waitForTimeout(2500)
+        const after = await page.locator('.stack-slot .slot-name').allTextContents()
+        expect(after).toEqual(before)
+    })
+
+    test('share: copies link to clipboard, link restores same stack', async ({ browser }) => {
+        const ctx = await browser.newContext({
+            permissions: ['camera', 'clipboard-read', 'clipboard-write']
+        })
+        const page = await ctx.newPage()
+        // Init script for this fresh context, with the same first-nav guard
+        // so the share-URL visit doesn't get its data wiped.
+        await ctx.addInitScript(() => {
+            if (!sessionStorage.getItem('__glitcher_test_cleared__')) {
+                try { localStorage.clear() } catch {}
+                sessionStorage.setItem('__glitcher_test_cleared__', '1')
+            }
+        })
+        await page.goto('/')
+        await page.waitForTimeout(2500)
+
+        await page.locator('.starter-chip', { hasText: 'Phantom' }).click()
+        await page.waitForTimeout(1500)
+        const before = await page.locator('.stack-slot .slot-name').allTextContents()
+
+        await page.click('#share-btn')
+        await expect(page.locator('.glitch-toast')).toContainText(/copied/i)
+        const url = await page.evaluate(() => navigator.clipboard.readText())
+        expect(url).toMatch(/#s=[A-Za-z0-9_-]+$/)
+
+        // Visit the URL in a fresh page (different context = fresh localStorage)
+        const freshCtx = await browser.newContext({
+            permissions: ['camera', 'clipboard-read', 'clipboard-write']
+        })
+        const fresh = await freshCtx.newPage()
+        await fresh.goto(url)
+        await fresh.waitForTimeout(2500)
+        const after = await fresh.locator('.stack-slot .slot-name').allTextContents()
+        expect(after).toEqual(before)
+        // Hash is cleared from the document URL after consumption
+        const docUrl = await fresh.evaluate(() => window.location.href)
+        expect(docUrl).not.toContain('#')
+
+        await freshCtx.close()
+        await ctx.close()
     })
 })

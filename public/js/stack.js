@@ -37,14 +37,24 @@ export class EffectStack {
         return this._slots.findIndex(s => s.uid === uid)
     }
 
-    /** Build a new slot for `effectId` with a freshly rolled snapshot. */
-    static makeSlot(effectId, intensity = 60) {
+    /**
+     * Build a new slot for `effectId`.
+     *
+     * If `rolled` is omitted, a fresh randomized snapshot is generated. If
+     * supplied (e.g. when restoring from localStorage or a share URL), it
+     * is used verbatim — defaults fill in any missing param names so an
+     * older saved snapshot stays compatible with a newer catalog.
+     */
+    static makeSlot(effectId, intensity = 60, rolled = null) {
         const effect = getEffect(effectId)
+        const snapshot = rolled
+            ? { ...effect.randomize(), ...rolled }   // fill gaps then override
+            : effect.randomize()
         return {
             uid: nextUid(),
             effectId,
             intensity,
-            rolled: effect.randomize()
+            rolled: snapshot
         }
     }
 
@@ -74,10 +84,35 @@ export class EffectStack {
         return true
     }
 
-    /** Replace the entire stack from a plain array of {effectId, intensity?}. */
+    /**
+     * Replace the entire stack from a plain array of
+     * `{effectId, intensity?, rolled?}`.
+     *
+     * When `rolled` is omitted, a fresh randomized snapshot is generated for
+     * that slot — this is the normal path for starters and GLITCHIFY. When
+     * `rolled` is supplied (persistence / share URL), it is restored verbatim
+     * so the user gets the exact look back.
+     */
     replace(specs) {
         this._slots = specs.map(spec =>
-            EffectStack.makeSlot(spec.effectId, spec.intensity ?? 60))
+            EffectStack.makeSlot(
+                spec.effectId,
+                spec.intensity ?? 60,
+                spec.rolled ?? null
+            ))
+    }
+
+    /**
+     * Restore a stack from a persistence snapshot (saved state / share URL).
+     * Filters out specs whose effectId is no longer in the catalog so a
+     * deprecated/renamed effect doesn't blow up boot.
+     */
+    replaceFromSnapshot(specs) {
+        const safe = specs.filter(spec => {
+            try { getEffect(spec.effectId); return true }
+            catch { return false }
+        })
+        this.replace(safe)
     }
 
     clear() {

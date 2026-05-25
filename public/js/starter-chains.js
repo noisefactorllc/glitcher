@@ -7,7 +7,8 @@
  * Clicking a starter replaces the user's current stack with these slots,
  * each with a freshly rolled snapshot.
  *
- * Curated so each one reads as a distinct vibe without needing the
+ * Curated so each one reads as a distinct glitch vibe — signal corruption,
+ * VHS dropout, RGB tear, ASCII'd, dithered down — without needing the
  * user to know what the effects do.
  */
 
@@ -16,6 +17,14 @@ export const STARTERS = [
         name: 'Datamosh',
         slots: [
             { effectId: 'corrupt',              intensity: 70 },
+            { effectId: 'chromaticAberration',  intensity: 55 }
+        ]
+    },
+    {
+        name: 'Mosh+',
+        slots: [
+            { effectId: 'corrupt',              intensity: 75 },
+            { effectId: 'convolutionFeedback',  intensity: 70 },
             { effectId: 'chromaticAberration',  intensity: 55 }
         ]
     },
@@ -45,17 +54,9 @@ export const STARTERS = [
     {
         name: 'Static',
         slots: [
-            { effectId: 'degauss', intensity: 55 },
-            { effectId: 'snow',    intensity: 80 },
-            { effectId: 'grain',   intensity: 60 }
-        ]
-    },
-    {
-        name: 'Wormhole',
-        slots: [
-            { effectId: 'lensWarp',            intensity: 70 },
-            { effectId: 'spiral',              intensity: 50 },
-            { effectId: 'chromaticAberration', intensity: 60 }
+            { effectId: 'snow',          intensity: 90 },
+            { effectId: 'scanlineError', intensity: 55 },
+            { effectId: 'grain',         intensity: 60 }
         ]
     },
     {
@@ -81,10 +82,41 @@ export const STARTERS = [
         ]
     },
     {
-        name: 'Drift',
+        name: 'ASCII',
         slots: [
-            { effectId: 'waves',               intensity: 60 },
-            { effectId: 'chromaticAberration', intensity: 55 }
+            { effectId: 'glyphMap',            intensity: 70 },
+            { effectId: 'chromaticAberration', intensity: 40 }
+        ]
+    },
+    {
+        name: 'Pico',
+        slots: [
+            { effectId: 'dither',        intensity: 90 },
+            { effectId: 'scanlineError', intensity: 45 }
+        ]
+    },
+    {
+        name: 'Halftone',
+        slots: [
+            { effectId: 'dither',    intensity: 85 },
+            { effectId: 'posterize', intensity: 70 },
+            { effectId: 'grain',     intensity: 50 }
+        ]
+    },
+    {
+        name: 'Lo-Fi',
+        slots: [
+            { effectId: 'posterize',     intensity: 70 },
+            { effectId: 'scanlineError', intensity: 60 },
+            { effectId: 'grain',         intensity: 55 }
+        ]
+    },
+    {
+        name: 'Neon',
+        slots: [
+            { effectId: 'glowingEdge',         intensity: 80 },
+            { effectId: 'chromaticAberration', intensity: 55 },
+            { effectId: 'grain',               intensity: 35 }
         ]
     }
 ]

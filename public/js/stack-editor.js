@@ -127,13 +127,16 @@ export class StackEditor {
         row.className = 'stack-slot'
         row.dataset.uid = slot.uid
         row.dataset.index = String(index)
-        row.draggable = true
 
-        // Drag handle (visual; whole row is the drag source)
+        // Drag handle — the only drag initiator. Pointer events here
+        // unify mouse + touch; HTML5 drag/drop is intentionally not used
+        // because it doesn't fire on touch.
         const handle = document.createElement('span')
         handle.className = 'slot-handle'
-        handle.setAttribute('aria-hidden', 'true')
+        handle.setAttribute('role', 'button')
+        handle.setAttribute('aria-label', `Drag ${effect.displayName} to reorder`)
         handle.textContent = '⋮⋮'
+        this._wireHandleDrag(handle, slot)
         row.appendChild(handle)
 
         // Effect name
@@ -157,9 +160,6 @@ export class StackEditor {
             row.querySelector('.slot-intensity-value').textContent = String(v)
             this._cb.onIntensityInput(slot.uid, v)
         })
-        // Prevent dragging from starting when the user grabs the slider thumb
-        slider.addEventListener('mousedown', (e) => e.stopPropagation())
-        slider.addEventListener('pointerdown', (e) => e.stopPropagation())
         intensity.appendChild(slider)
 
         const value = document.createElement('span')
@@ -188,55 +188,131 @@ export class StackEditor {
         remove.addEventListener('click', () => this._cb.onRemove(slot.uid))
         row.appendChild(remove)
 
-        this._wireDragHandlers(row, slot)
         return row
     }
 
-    _wireDragHandlers(row, slot) {
-        row.addEventListener('dragstart', (e) => {
-            this._dragUid = slot.uid
-            row.classList.add('dragging')
-            e.dataTransfer.effectAllowed = 'move'
-            try { e.dataTransfer.setData('text/plain', slot.uid) } catch {}
+    /**
+     * Pointer-event drag for stack reordering. Works on mouse + touch.
+     * Drag starts after 4px movement so a single tap doesn't grab; on
+     * pointerup we commit the move (or no-op if not enough movement).
+     *
+     * `setPointerCapture` keeps move/up events flowing to the handle even
+     * after the pointer leaves it.
+     */
+    _wireHandleDrag(handle, slot) {
+        const THRESHOLD = 4
+        let state = null  // null | { startY, startX, captured, started, row }
+
+        handle.addEventListener('pointerdown', (e) => {
+            if (e.button !== undefined && e.button !== 0) return
+            const row = handle.closest('.stack-slot')
+            if (!row) return
+            state = {
+                pointerId: e.pointerId,
+                startX: e.clientX,
+                startY: e.clientY,
+                started: false,
+                row
+            }
+            // Capture so move/up arrive even outside the handle. Capture
+            // can fail for synthetic events; we still want to track manually.
+            try { handle.setPointerCapture(e.pointerId) } catch {}
         })
 
-        row.addEventListener('dragend', () => {
+        handle.addEventListener('pointermove', (e) => {
+            if (!state || e.pointerId !== state.pointerId) return
+            const dy = e.clientY - state.startY
+            const dx = e.clientX - state.startX
+            if (!state.started && Math.hypot(dx, dy) < THRESHOLD) return
+            if (!state.started) {
+                state.started = true
+                this._dragUid = slot.uid
+                state.row.classList.add('dragging')
+            }
+            this._updateDropTarget(e.clientY, slot.uid)
+            this._maybeAutoScroll(e.clientY)
+        })
+
+        const finish = (e) => {
+            if (!state || e.pointerId !== state.pointerId) return
+            const started = state.started
+            const dropTarget = this._dropTarget
+            try { handle.releasePointerCapture(state.pointerId) } catch {}
+            this._clearDropHighlights()
+            state.row.classList.remove('dragging')
+            state = null
             this._dragUid = null
-            this._dragOverUid = null
-            document.querySelectorAll('.stack-slot').forEach(r => {
-                r.classList.remove('dragging', 'drag-over-top', 'drag-over-bottom')
-            })
-        })
+            this._dropTarget = null
+            if (!started) return
+            if (!dropTarget || dropTarget.uid === slot.uid) return
 
-        row.addEventListener('dragover', (e) => {
-            if (!this._dragUid || this._dragUid === slot.uid) return
-            e.preventDefault()
-            e.dataTransfer.dropEffect = 'move'
+            const targetIdx = this._stack.findIndex(dropTarget.uid)
+            if (targetIdx < 0) return
+            const movingFrom = this._stack.findIndex(slot.uid)
+            let to = dropTarget.before ? targetIdx : targetIdx + 1
+            // If moving downward past the source's own slot, adjust for the removal.
+            if (movingFrom >= 0 && movingFrom < to) to -= 1
+            this._cb.onMove(slot.uid, to)
+        }
+
+        handle.addEventListener('pointerup', finish)
+        handle.addEventListener('pointercancel', finish)
+    }
+
+    _updateDropTarget(clientY, draggingUid) {
+        this._clearDropHighlights()
+        const rows = document.querySelectorAll('.stack-slot')
+        for (const row of rows) {
+            const uid = row.dataset.uid
+            if (uid === draggingUid) continue
             const rect = row.getBoundingClientRect()
-            const before = (e.clientY - rect.top) < rect.height / 2
+            if (clientY < rect.top || clientY > rect.bottom) continue
+            const before = (clientY - rect.top) < rect.height / 2
             row.classList.toggle('drag-over-top', before)
             row.classList.toggle('drag-over-bottom', !before)
-            this._dragOverUid = slot.uid
-        })
+            this._dropTarget = { uid, before }
+            return
+        }
+        // Edge case: pointer above first row → drop before first non-self row
+        const firstNonSelf = Array.from(rows).find(r => r.dataset.uid !== draggingUid)
+        if (firstNonSelf) {
+            const rect = firstNonSelf.getBoundingClientRect()
+            if (clientY < rect.top) {
+                firstNonSelf.classList.add('drag-over-top')
+                this._dropTarget = { uid: firstNonSelf.dataset.uid, before: true }
+                return
+            }
+            // Or below the last
+            const last = Array.from(rows).reverse().find(r => r.dataset.uid !== draggingUid)
+            if (last && clientY > last.getBoundingClientRect().bottom) {
+                last.classList.add('drag-over-bottom')
+                this._dropTarget = { uid: last.dataset.uid, before: false }
+                return
+            }
+        }
+        this._dropTarget = null
+    }
 
-        row.addEventListener('dragleave', () => {
-            row.classList.remove('drag-over-top', 'drag-over-bottom')
+    _clearDropHighlights() {
+        document.querySelectorAll('.stack-slot').forEach(r => {
+            r.classList.remove('drag-over-top', 'drag-over-bottom')
         })
+    }
 
-        row.addEventListener('drop', (e) => {
-            if (!this._dragUid || this._dragUid === slot.uid) return
-            e.preventDefault()
-            const rect = row.getBoundingClientRect()
-            const before = (e.clientY - rect.top) < rect.height / 2
-            const targetIdx = this._stack.findIndex(slot.uid)
-            if (targetIdx < 0) return
-            const movingFrom = this._stack.findIndex(this._dragUid)
-            // Insert before/after the target. If the moving slot was earlier
-            // and we're inserting after the target, adjust for the removal.
-            let to = before ? targetIdx : targetIdx + 1
-            if (movingFrom >= 0 && movingFrom < to) to -= 1
-            this._cb.onMove(this._dragUid, to)
-        })
+    /**
+     * If dragging near the top or bottom edge of the scrollable stack
+     * container, gently scroll so the user can reach off-screen slots.
+     */
+    _maybeAutoScroll(clientY) {
+        const section = document.getElementById('stack-section')
+        if (!section) return
+        const rect = section.getBoundingClientRect()
+        const edge = 36
+        if (clientY < rect.top + edge) {
+            section.scrollBy({ top: -10 })
+        } else if (clientY > rect.bottom - edge) {
+            section.scrollBy({ top: 10 })
+        }
     }
 
     _wirePicker() {

@@ -204,6 +204,64 @@
 }
 
 /* ============================================================
+   SHARE button (sibling of RE-ROLL ALL)
+   ============================================================ */
+
+.share-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 44px;
+    padding: 0 14px;
+    background: transparent;
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    transition: all 0.15s;
+    flex-shrink: 0;
+}
+
+.share-btn:hover {
+    border-color: var(--accent-magenta);
+    color: var(--text);
+    box-shadow: 0 0 14px rgba(255, 0, 144, 0.4);
+}
+
+/* ============================================================
+   Toast
+   ============================================================ */
+
+.glitch-toast {
+    position: fixed;
+    left: 50%;
+    bottom: calc(120px + env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+    background: var(--bg-elevated);
+    border: 1px solid var(--accent-cyan);
+    color: var(--text);
+    padding: 10px 18px;
+    border-radius: 6px;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    z-index: 200;
+    pointer-events: none;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 24px rgba(0, 245, 255, 0.3);
+    animation: toast-life 2.2s ease-in-out forwards;
+}
+
+@keyframes toast-life {
+    0%   { opacity: 0; transform: translate(-50%, 12px); }
+    10%  { opacity: 1; transform: translate(-50%, 0); }
+    85%  { opacity: 1; transform: translate(-50%, 0); }
+    100% { opacity: 0; transform: translate(-50%, -8px); }
+}
+
+/* ============================================================
    Stack slots
    ============================================================ */
 
@@ -225,8 +283,7 @@
     background: var(--bg);
     border: 1px solid var(--border);
     border-radius: 6px;
-    cursor: grab;
-    transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+    transition: border-color 0.15s, box-shadow 0.15s, opacity 0.1s;
     position: relative;
 }
 
@@ -236,26 +293,43 @@
 
 .stack-slot.dragging {
     opacity: 0.5;
-    cursor: grabbing;
 }
 
+/* Outset shadow above/below the row to indicate insertion point */
 .stack-slot.drag-over-top {
-    box-shadow: 0 -2px 0 0 var(--accent-magenta);
+    box-shadow: 0 -3px 0 0 var(--accent-magenta);
 }
 
 .stack-slot.drag-over-bottom {
-    box-shadow: 0 2px 0 0 var(--accent-magenta);
+    box-shadow: 0 3px 0 0 var(--accent-magenta);
 }
 
 .slot-handle {
     color: var(--text-dim);
     cursor: grab;
-    font-size: 14px;
+    font-size: 16px;
     line-height: 1;
-    letter-spacing: -2px;
+    letter-spacing: -3px;
     user-select: none;
-    width: 12px;
-    text-align: center;
+    width: 28px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    /* Disable browser gestures during drag so a finger drag actually
+       reorders the slot instead of scrolling the page or panning. */
+    touch-action: none;
+    border-radius: 4px;
+    transition: background 0.15s, color 0.15s;
+}
+
+.slot-handle:hover {
+    background: rgba(0, 245, 255, 0.08);
+    color: var(--text);
+}
+
+.slot-handle:active {
+    cursor: grabbing;
 }
 
 .slot-name {

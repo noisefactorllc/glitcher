@@ -2,12 +2,19 @@
 /**
  * Glitcher effect catalog.
  *
+ * Glitch-only — no spatial distortions, warps, twirls, lens displacements.
+ * The "lens" half of glitch art means color aberrations and light leaks,
+ * not pinch / spiral / waves / zoom blur. If you want camera warps, build
+ * them somewhere else.
+ *
  * Each entry is a single Noisemaker filter the user can drop into the stack.
  * For each effect we declare:
  *
  *   defaults      — neutral / barely-on params (the value at intensity=0)
  *   randomize()   — returns a rolled snapshot of params (the value at intensity=100)
- *   paramSpecs    — per-param { type, min, max } for safe lerp + clamping
+ *   paramSpecs    — per-param spec for lerp + emit:
+ *                     { type: 'float'|'int', min, max }
+ *                     { type: 'choice', choices: ['a','b',...] }   discrete snap
  *   liveTunable   — subset of param names that can be tweaked via
  *                   applyStepParameterValues without a recompile. (Anything
  *                   outside this list forces a recompile when changed.)
@@ -27,6 +34,7 @@ const randPick = arr => arr[Math.floor(Math.random() * arr.length)]
  */
 const F = (min, max) => ({ type: 'float', min, max })
 const I = (min, max) => ({ type: 'int', min, max })
+const C = (...choices) => ({ type: 'choice', choices })
 
 export const EFFECTS = {
 
@@ -114,10 +122,29 @@ export const EFFECTS = {
         liveTunable: ['aberration', 'passthru']
     },
 
+    prismaticAberration: {
+        id: 'prismaticAberration',
+        displayName: 'Prism',
+        tagline: 'Hue-rotating prism split',
+        defaults: { aberration: 10, hueRotation: 0, hueRange: 0, saturation: 0, passthru: 80 },
+        randomize: () => ({
+            aberration: randInt(45, 95),
+            hueRotation: randInt(-180, 180),
+            hueRange: randInt(30, 100),
+            saturation: randInt(-40, 80),
+            passthru: randInt(25, 70)
+        }),
+        paramSpecs: {
+            aberration: F(0, 100), hueRotation: F(-180, 180),
+            hueRange: F(0, 100), saturation: F(-100, 100), passthru: F(0, 100)
+        },
+        liveTunable: ['aberration', 'hueRotation', 'hueRange', 'saturation', 'passthru']
+    },
+
     crt: {
         id: 'crt',
         displayName: 'CRT',
-        tagline: 'Phosphor + curvature',
+        tagline: 'Phosphor + scanlines',
         defaults: { alpha: 0.3, speed: 1 },
         randomize: () => ({
             alpha: randFloat(0.6, 1.0),
@@ -125,32 +152,6 @@ export const EFFECTS = {
         }),
         paramSpecs: { alpha: F(0, 1), speed: F(0, 5) },
         liveTunable: ['alpha', 'speed']
-    },
-
-    degauss: {
-        id: 'degauss',
-        displayName: 'Degauss',
-        tagline: 'CRT magnetic pulse',
-        defaults: { displacement: 0.02, direction: 0, speed: 1 },
-        randomize: () => ({
-            displacement: randFloat(0.06, 0.22),
-            direction: randInt(-180, 180),
-            speed: randFloat(0.5, 2.0)
-        }),
-        paramSpecs: { displacement: F(0, 0.25), direction: F(-180, 180), speed: F(0, 2) },
-        liveTunable: ['displacement', 'direction', 'speed']
-    },
-
-    lensWarp: {
-        id: 'lensWarp',
-        displayName: 'Lens Warp',
-        tagline: 'Noise-driven radial lens',
-        defaults: { displacement: 0.015 },
-        randomize: () => ({
-            displacement: randFloat(0.08, 0.22)
-        }),
-        paramSpecs: { displacement: F(0, 0.25) },
-        liveTunable: ['displacement']
     },
 
     convolutionFeedback: {
@@ -178,54 +179,6 @@ export const EFFECTS = {
         heavyParams: ['sharpenRadius', 'blurRadius']
     },
 
-    pinch: {
-        id: 'pinch',
-        displayName: 'Pinch',
-        tagline: 'Fish-eye lens distortion',
-        defaults: { strength: 0, rotation: 0 },
-        randomize: () => ({
-            strength: randInt(40, 95),
-            rotation: randInt(-90, 90)
-        }),
-        paramSpecs: { strength: F(0, 100), rotation: F(-180, 180) },
-        liveTunable: ['strength', 'rotation']
-    },
-
-    waves: {
-        id: 'waves',
-        displayName: 'Waves',
-        tagline: 'Sine displacement',
-        defaults: { strength: 2, scale: 1, speed: 1, rotation: 0 },
-        randomize: () => ({
-            strength: randInt(15, 70),
-            scale: randFloat(1, 4),
-            speed: randInt(-4, 4),
-            rotation: randInt(-180, 180)
-        }),
-        paramSpecs: {
-            strength: F(0, 100), scale: F(1, 5),
-            speed: I(-5, 5), rotation: F(-180, 180)
-        },
-        liveTunable: ['strength', 'scale', 'speed', 'rotation']
-    },
-
-    spiral: {
-        id: 'spiral',
-        displayName: 'Spiral',
-        tagline: 'Spiral lens vortex',
-        defaults: { strength: 0, speed: 0, rotation: 0 },
-        randomize: () => ({
-            strength: randInt(-90, 90),
-            speed: randInt(-3, 3),
-            rotation: randInt(-180, 180)
-        }),
-        paramSpecs: {
-            strength: F(-100, 100), speed: I(-5, 5),
-            rotation: F(-180, 180)
-        },
-        liveTunable: ['strength', 'speed', 'rotation']
-    },
-
     edge: {
         id: 'edge',
         displayName: 'Edge',
@@ -238,6 +191,93 @@ export const EFFECTS = {
         }),
         paramSpecs: { amount: F(0, 500), threshold: F(0, 100), mix: F(0, 100) },
         liveTunable: ['amount', 'threshold', 'mix']
+    },
+
+    sobel: {
+        id: 'sobel',
+        displayName: 'Sobel',
+        tagline: 'Classic edge detection',
+        defaults: { amount: 0.3, alpha: 0.4 },
+        randomize: () => ({
+            amount: randFloat(1.0, 4.0),
+            alpha: randFloat(0.7, 1.0)
+        }),
+        paramSpecs: { amount: F(0.1, 5), alpha: F(0, 1) },
+        liveTunable: ['amount', 'alpha']
+    },
+
+    glowingEdge: {
+        id: 'glowingEdge',
+        displayName: 'Glow Edge',
+        tagline: 'Neon edge outlines',
+        defaults: { shape: 'circle', width: 1, alpha: 0.3 },
+        randomize: () => ({
+            shape: randPick(['circle', 'diamond', 'square', 'star']),
+            width: randInt(2, 5),
+            alpha: randFloat(0.7, 1.0)
+        }),
+        paramSpecs: {
+            shape: C('circle', 'diamond', 'square', 'star'),
+            width: I(0, 10),
+            alpha: F(0, 1)
+        },
+        liveTunable: ['shape', 'width', 'alpha']
+    },
+
+    posterize: {
+        id: 'posterize',
+        displayName: 'Posterize',
+        tagline: 'Color quantization',
+        defaults: { levels: 12, gamma: 1.0 },
+        randomize: () => ({
+            levels: randInt(2, 6),
+            gamma: randFloat(0.5, 2.0)
+        }),
+        paramSpecs: { levels: I(2, 32), gamma: F(0.1, 3) },
+        liveTunable: ['levels', 'gamma']
+    },
+
+    dither: {
+        id: 'dither',
+        displayName: 'Dither',
+        tagline: 'Bayer dither + retro palettes',
+        defaults: {
+            type: 'bayer4x4', palette: 'input',
+            matrixScale: 2, threshold: 0, levels: 8, mix: 0.05
+        },
+        randomize: () => ({
+            type: randPick(['bayer2x2', 'bayer4x4', 'bayer8x8', 'dot', 'line', 'crosshatch', 'noise']),
+            palette: randPick(['input', 'monochrome', 'dotMatrixGreen', 'amberMonitor', 'pico8', 'commodore64', 'cgaPalette1', 'zxSpectrum', 'appleII', 'ega']),
+            matrixScale: randInt(1, 4),
+            threshold: randFloat(-0.2, 0.2),
+            levels: randInt(2, 8),
+            mix: randFloat(0.5, 1.0)
+        }),
+        paramSpecs: {
+            type: C('bayer2x2', 'bayer4x4', 'bayer8x8', 'dot', 'line', 'crosshatch', 'noise'),
+            palette: C('input', 'monochrome', 'dotMatrixGreen', 'amberMonitor', 'pico8', 'commodore64', 'cgaPalette1', 'zxSpectrum', 'appleII', 'ega'),
+            matrixScale: I(1, 8),
+            threshold: F(-0.5, 0.5),
+            levels: I(2, 16),
+            mix: F(0, 1)
+        },
+        liveTunable: ['type', 'palette', 'matrixScale', 'threshold', 'levels', 'mix']
+    },
+
+    glyphMap: {
+        id: 'glyphMap',
+        displayName: 'Glyph Map',
+        tagline: 'ASCII / glyph art conversion',
+        defaults: { cellSize: 24, colorMode: 'rgb' },
+        randomize: () => ({
+            cellSize: randInt(8, 22),
+            colorMode: randPick(['mono', 'rgb', 'rgb', 'rgb'])
+        }),
+        paramSpecs: {
+            cellSize: I(4, 32),
+            colorMode: C('mono', 'rgb')
+        },
+        liveTunable: ['cellSize', 'colorMode']
     },
 
     invert: {
@@ -278,10 +318,18 @@ export const EFFECTS = {
 
 /** Stable display order for the add-effect picker and starters UI. */
 export const EFFECT_ORDER = [
+    // signal corruption
     'corrupt', 'pixelSort', 'scanlineError', 'snow',
-    'chromaticAberration', 'crt', 'degauss', 'lensWarp',
-    'convolutionFeedback', 'pinch', 'waves', 'spiral',
-    'edge', 'invert', 'grain', 'lightLeak'
+    // color / RGB aberration
+    'chromaticAberration', 'prismaticAberration', 'invert',
+    // quantize / dither / glyph
+    'posterize', 'dither', 'glyphMap',
+    // CRT
+    'crt',
+    // feedback / edge work
+    'convolutionFeedback', 'edge', 'sobel', 'glowingEdge',
+    // analog texture
+    'grain', 'lightLeak'
 ]
 
 /** Lookup helper. Throws on unknown ids — never silently substitute. */
@@ -293,15 +341,22 @@ export function getEffect(id) {
 
 /**
  * Interpolate from defaults toward rolled by t ∈ [0,1], honoring per-param
- * type (int → rounded) and clamping to paramSpecs bounds.
+ * spec. Continuous (int/float) params lerp + clamp. Choice params snap:
+ * at t=0 they return the default; at any t>0 they return the rolled value.
  */
 export function lerpParams(effect, rolled, t) {
     const out = {}
     for (const name of Object.keys(effect.paramSpecs)) {
         const spec = effect.paramSpecs[name]
-        const a = effect.defaults[name] ?? 0
+        const a = effect.defaults[name]
         const b = rolled[name] ?? a
-        let v = a + (b - a) * t
+        if (spec.type === 'choice') {
+            out[name] = (t > 0) ? b : a
+            continue
+        }
+        const aN = a ?? 0
+        const bN = b ?? aN
+        let v = aN + (bN - aN) * t
         v = Math.max(spec.min, Math.min(spec.max, v))
         if (spec.type === 'int') v = Math.round(v)
         out[name] = v
@@ -309,8 +364,9 @@ export function lerpParams(effect, rolled, t) {
     return out
 }
 
-/** Format a single param value as a DSL literal. ints emit unquoted ints. */
+/** Format a single param value as a DSL literal. */
 function formatLiteral(value, spec) {
+    if (spec.type === 'choice') return String(value)   // unquoted name token
     if (spec.type === 'int') return String(Math.round(value))
     if (Number.isInteger(value)) return value.toFixed(1)
     return value.toFixed(3).replace(/0+$/, '').replace(/\.$/, '.0')

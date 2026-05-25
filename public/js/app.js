@@ -28,6 +28,10 @@ import { CaptureController } from './capture-controller.js'
 import { wireKeyboard } from './keyboard.js'
 import { Lock } from './lock.js'
 import { aboutDialog } from './about-dialog.js'
+import {
+    saveLocal, loadLocal, consumeShareHash,
+    buildShareUrl, copyToClipboard
+} from './persistence.js'
 
 class GlitcherApp {
     constructor() {
@@ -47,6 +51,10 @@ class GlitcherApp {
         this._dirty = false
 
         this._cameraCount = null
+
+        // Debounce live-saves so dragging an intensity slider doesn't
+        // hammer localStorage on every frame.
+        this._saveTimer = null
     }
 
     async init() {
@@ -82,8 +90,14 @@ class GlitcherApp {
         await this._renderer.init()
         if (cameraStarted) this._renderer.setSource(this._source.element)
 
-        // Default starting stack so the canvas isn't bare on first paint.
-        this._stack.replace(STARTERS[0].slots)
+        // Pick the initial stack: shared URL → localStorage → first starter.
+        const sharedSpecs = consumeShareHash()
+        const savedSpecs = sharedSpecs ?? loadLocal()
+        if (savedSpecs && savedSpecs.length > 0) {
+            this._stack.replaceFromSnapshot(savedSpecs)
+        } else {
+            this._stack.replace(STARTERS[0].slots)
+        }
 
         this._editor = new StackEditor({
             stack: this._stack,
@@ -157,6 +171,18 @@ class GlitcherApp {
         this._renderer.setStepParameters(this._stack.buildLiveParams())
     }
 
+    /**
+     * Persist the current stack to localStorage. Coalesces rapid calls
+     * (intensity slider drag) into a single write 250ms after the last call.
+     */
+    _scheduleSave() {
+        if (this._saveTimer) clearTimeout(this._saveTimer)
+        this._saveTimer = setTimeout(() => {
+            this._saveTimer = null
+            saveLocal(this._stack.slots)
+        }, 250)
+    }
+
     // ============================================================
     // Slot event handlers
     // ============================================================
@@ -164,30 +190,35 @@ class GlitcherApp {
     _onSlotIntensity(uid, value) {
         if (!this._stack.setIntensity(uid, value)) return
         this._pushLive()
+        this._scheduleSave()
     }
 
     _onSlotReroll(uid) {
         if (!this._stack.reroll(uid)) return
         this._editor.pulseReroll(uid)
         this._pushLive()
+        this._scheduleSave()
     }
 
     _onSlotRemove(uid) {
         if (!this._stack.remove(uid)) return
         this._editor.renderStack()
         this._recompile()
+        this._scheduleSave()
     }
 
     _onSlotMove(uid, toIndex) {
         if (!this._stack.move(uid, toIndex)) return
         this._editor.renderStack()
         this._recompile()
+        this._scheduleSave()
     }
 
     _onAddEffect(effectId) {
         this._stack.add(effectId, 60)
         this._editor.renderStack()
         this._recompile()
+        this._scheduleSave()
     }
 
     _onStarter(starterIdx) {
@@ -196,6 +227,7 @@ class GlitcherApp {
         this._stack.replace(starter.slots)
         this._editor.renderStack()
         this._recompile()
+        this._scheduleSave()
     }
 
     // ============================================================
@@ -215,6 +247,7 @@ class GlitcherApp {
         this._editor.pulseGlitchifyButton()
         StackEditor.showGlitchPulse()
         await this._recompile()
+        this._scheduleSave()
     }
 
     /** Re-roll every slot's snapshot without changing composition. */
@@ -223,6 +256,36 @@ class GlitcherApp {
         this._stack.rerollAll()
         for (const slot of this._stack.slots) this._editor.pulseReroll(slot.uid)
         this._pushLive()
+        this._scheduleSave()
+    }
+
+    /**
+     * Build a share URL for the current stack and copy to clipboard.
+     * Shows a brief toast on success / failure so the user knows.
+     */
+    async _share() {
+        if (this._stack.isEmpty) {
+            this._toast('Nothing to share — add an effect first.')
+            return
+        }
+        const url = buildShareUrl(this._stack.slots)
+        const ok = await copyToClipboard(url)
+        if (ok) {
+            this._toast('Link copied to clipboard')
+        } else {
+            // Clipboard blocked — show the URL in a prompt so user can copy.
+            this._toast('Couldn\'t copy automatically; URL in console')
+            console.log('[Glitcher] Share URL:', url)
+        }
+    }
+
+    /** Small transient banner near the share button. */
+    _toast(message) {
+        const el = document.createElement('div')
+        el.className = 'glitch-toast'
+        el.textContent = message
+        document.body.appendChild(el)
+        el.addEventListener('animationend', () => el.remove())
     }
 
     // ============================================================
@@ -310,6 +373,7 @@ class GlitcherApp {
 
     _wireControls() {
         document.getElementById('glitchify-btn').addEventListener('click', () => this._glitchify())
+        document.getElementById('share-btn')?.addEventListener('click', () => this._share())
 
         document.getElementById('camera-btn').classList.add('active')
         document.getElementById('camera-btn').addEventListener('click', () => this._useCamera())

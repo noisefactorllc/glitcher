@@ -23,6 +23,10 @@ Aims for the response *"yeah"* from a glitch-art person, not *"looks like an Ins
 
 ## Effects (glitch catalog)
 
+Glitch only — no spatial distortions, warps, twirls, lens displacements.
+"Lens effects" here means color/optical aberrations and light leaks, not
+camera-warp tricks.
+
 | Effect | Vibe |
 | --- | --- |
 | `corrupt` | Datamosh — scanline data corruption |
@@ -30,15 +34,16 @@ Aims for the response *"yeah"* from a glitch-art person, not *"looks like an Ins
 | `scanlineError` | VHS horizontal tears |
 | `snow` | TV static |
 | `chromaticAberration` | RGB fringing |
-| `crt` | CRT phosphor + curvature |
-| `degauss` | CRT magnetic pulse |
-| `lensWarp` | Noise-driven radial lens |
-| `convolutionFeedback` | Sharpen/blur feedback datamosh |
-| `pinch` | Fish-eye |
-| `waves` | Sine displacement |
-| `spiral` | Spiral lens vortex |
-| `edge` | Edge-detect outlines |
+| `prismaticAberration` | Hue-rotating prism split |
 | `invert` | Color inversion |
+| `posterize` | Color quantization |
+| `dither` | Bayer dither + retro palettes |
+| `glyphMap` | ASCII / glyph art |
+| `crt` | CRT phosphor + scanlines |
+| `convolutionFeedback` | Sharpen/blur feedback datamosh |
+| `edge` | Edge-detect outlines |
+| `sobel` | Classic Sobel edges |
+| `glowingEdge` | Neon edge outlines |
 | `grain` | Film grain |
 | `lightLeak` | Analog film burn |
 
@@ -77,11 +82,17 @@ Recompile (slow path, under the `Lock`) is required when the chain itself change
 
 The `Lock` coalesces structural changes the same way preset clicks used to.
 
+## Persistence + share
+
+The current stack auto-saves to `localStorage` (debounced 250ms for slider drags) so a reload restores the last state.
+
+A SHARE button copies a `#s=...` URL to the clipboard that encodes the entire stack — slot ids, intensities, and rolled snapshots — as URL-safe base64 JSON. Opening that URL restores the exact look, then clears the hash so subsequent edits flow into localStorage instead.
+
 ## Starter chains
 
 A small set of curated multi-effect starting points that populate the stack as a starting state. They are not the API — the stack is.
 
-Datamosh • Dead Tape • CRT • Slice • Static • Wormhole • Phantom • Edges • Negative • Drift
+Datamosh • Mosh+ • Dead Tape • CRT • Slice • Static • Phantom • Edges • Negative • ASCII • Pico • Halftone • Lo-Fi • Neon
 
 ## UI
 
@@ -92,7 +103,7 @@ Layout (desktop):
 |             [Stage: full canvas]          |
 |                                           |
 +-------------------------------------------+
-| [GLITCHIFY]                  [RE-ROLL ALL]|
+| [GLITCHIFY]      [RE-ROLL ALL]  [SHARE]   |
 +-------------------------------------------+
 | STACK            [+ ADD EFFECT]           |
 |  ⋮ Corrupt     🎲 ━━●━━━ 60  ×           |
@@ -145,6 +156,7 @@ glitcher/
         ├── stack.js            EffectStack (slot list + DSL emit + lerp)
         ├── stack-editor.js     DOM view + interactions
         ├── starter-chains.js   Curated multi-effect starting stacks
+        ├── persistence.js      localStorage + URL-share encoding
         ├── capture-controller.js
         ├── capture.js
         ├── gallery.js
