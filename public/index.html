@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -13,7 +13,6 @@
     <meta property="og:site_name" content="Noise Factor">
 
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#080010">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Glitcher">
@@ -24,8 +23,41 @@
     <script type="importmap">
         { "imports": { "handfish": "https://handfish.noisefactor.io/0/handfish.esm.min.js" } }
     </script>
+
     <link rel="stylesheet" href="https://handfish.noisefactor.io/0/styles/tokens.css">
     <link rel="stylesheet" href="https://handfish.noisefactor.io/0/styles/dialogs.css">
+
+    <!-- Apply the saved handfish theme synchronously to avoid a flash from
+         the default dark palette to the user's chosen theme on every load.
+         The script appends the theme <link> AFTER tokens.css so it wins the
+         cascade (both selectors are specificity (0,1,0), later loses-then-
+         wins on source order). Keep this mapping in sync with
+         js/handfish-theme.js (THEMES). -->
+    <script>
+    (function () {
+        var FILES = {
+            'neutral-dark': 'neutral', 'neutral-light': 'neutral',
+            'gray-dark': 'gray', 'gray-light': 'gray',
+            'corporate': 'corporate',
+            'high-contrast-dark': 'high-contrast', 'high-contrast-light': 'high-contrast',
+            'newspaper': 'newspaper', 'gothic': 'gothic', 'terminal': 'terminal',
+            'brutalist': 'brutalist', 'ocean': 'ocean', 'dusk': 'dusk',
+            'sunset': 'sunset', 'earthy': 'earthy', 'organic': 'organic',
+            'cyberpunk': 'cyberpunk', 'synthwave': 'synthwave',
+            'rave': 'rave', 'kawaii': 'kawaii'
+        }
+        var stored = null
+        try { stored = localStorage.getItem('glitcher.theme.v1') } catch (e) {}
+        var theme = (stored && FILES[stored]) ? stored : 'synthwave'
+        document.documentElement.setAttribute('data-theme', theme)
+        var link = document.createElement('link')
+        link.id = 'hf-theme-link'
+        link.rel = 'stylesheet'
+        link.href = 'https://handfish.noisefactor.io/0/styles/themes/' + FILES[theme] + '.css'
+        document.head.appendChild(link)
+    })()
+    </script>
+
     <link rel="stylesheet" href="css/colors.css">
     <link rel="stylesheet" href="css/layout.css">
     <link rel="stylesheet" href="css/components.css">
@@ -33,17 +65,21 @@
 <body>
     <div id="app">
         <header id="title-bar">
-            <h1 class="title">
-                <span class="title-shadow title-shadow-cyan">GLITCHER</span>
-                <span class="title-shadow title-shadow-magenta">GLITCHER</span>
-                <span class="title-main">GLITCHER</span>
-            </h1>
-            <button id="about-btn" class="icon-btn" title="About Glitcher" aria-label="About Glitcher">
-                <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18">
-                    <circle cx="10" cy="5.5" r="1.5"/>
-                    <rect x="8.75" y="8.5" width="2.5" height="7" rx="1"/>
-                </svg>
-            </button>
+            <h1 class="title">GLITCHER</h1>
+            <div class="title-actions">
+                <button id="settings-btn" class="icon-btn" title="Settings" aria-label="Open settings">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                    </svg>
+                </button>
+                <button id="about-btn" class="icon-btn" title="About Glitcher" aria-label="About Glitcher">
+                    <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18">
+                        <circle cx="10" cy="5.5" r="1.5"/>
+                        <rect x="8.75" y="8.5" width="2.5" height="7" rx="1"/>
+                    </svg>
+                </button>
+            </div>
         </header>
 
         <main id="stage">
@@ -58,7 +94,6 @@
 
         <section id="glitchify-row">
             <button id="glitchify-btn" class="glitchify-btn" title="Random stack (G)">
-                <span class="glitchify-bg"></span>
                 <span class="glitchify-label">GLITCHIFY</span>
             </button>
             <button id="reroll-all-btn" class="reroll-all-btn" title="Re-roll all effects (R)" aria-label="Re-roll all">
@@ -142,6 +177,25 @@
             </div>
         </footer>
         <input id="file-input" type="file" accept="image/*" class="hidden">
+
+        <dialog id="settings-dialog" class="settings-dialog">
+            <div class="settings-dialog-head">
+                <h2>Settings</h2>
+                <button id="settings-close" class="icon-btn" aria-label="Close settings">
+                    <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path d="M15 5L5 15M5 5l10 10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                </button>
+            </div>
+            <div class="settings-dialog-body">
+                <section class="settings-section">
+                    <h3>Appearance</h3>
+                    <div class="settings-row">
+                        <label for="theme-picker-host">Theme</label>
+                        <span id="theme-picker-host" class="theme-picker-host"></span>
+                    </div>
+                    <p class="settings-hint">Handfish themes. Picks your color palette, font, and surface treatment site-wide.</p>
+                </section>
+            </div>
+        </dialog>
     </div>
     <script type="module" src="js/app.js"></script>
 </body>

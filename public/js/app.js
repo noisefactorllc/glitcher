@@ -28,6 +28,7 @@ import { CaptureController } from './capture-controller.js'
 import { wireKeyboard } from './keyboard.js'
 import { Lock } from './lock.js'
 import { aboutDialog } from './about-dialog.js'
+import { mountThemePicker } from './handfish-theme.js'
 import {
     saveLocal, loadLocal, consumeShareHash,
     buildShareUrl, copyToClipboard
@@ -393,6 +394,19 @@ class GlitcherApp {
         })
 
         document.getElementById('about-btn').addEventListener('click', () => aboutDialog.show())
+
+        // Settings dialog (native <dialog>). The inline <script> in index.html
+        // already applied the saved theme before paint, so the picker only
+        // needs to wire the dropdown UI for changes the user makes here.
+        const settingsDialog = document.getElementById('settings-dialog')
+        const themeHost = document.getElementById('theme-picker-host')
+        if (themeHost) mountThemePicker({ container: themeHost, storageKey: 'glitcher.theme.v1', defaultTheme: 'synthwave' })
+        document.getElementById('settings-btn').addEventListener('click', () => {
+            settingsDialog?.showModal()
+        })
+        document.getElementById('settings-close').addEventListener('click', () => {
+            settingsDialog?.close()
+        })
 
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) this._renderer?.stop()
