@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Glitcher — Real-Time Glitch Art</title>
-    <meta name="description" content="State-of-the-art glitch art tool. Live camera, datamosh, CRT, scanlines, chromatic aberration. Free, no install, no account, no tracking.">
+    <meta name="description" content="State-of-the-art glitch art tool. Stack datamosh, pixel sort, CRT, scanline error, lens warp, snow. Live camera, free, no install, no account, no tracking.">
 
     <!-- OpenGraph -->
     <meta property="og:title" content="Glitcher — Real-Time Glitch Art">
-    <meta property="og:description" content="Layer chains of glitch effects over your camera or an image. Datamosh, CRT, scanlines, chromatic aberration, feedback.">
+    <meta property="og:description" content="Stack chains of glitch effects over your camera or an image. Datamosh, pixel sort, CRT, scanlines, chromatic aberration, feedback. Each effect rerolls on demand.">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Noise Factor">
 
@@ -54,23 +54,41 @@
                     <p class="error-body">Allow camera access and reload, or upload an image to continue.</p>
                 </div>
             </div>
-            <div id="effect-readout" class="effect-readout">—</div>
         </main>
 
-        <section id="dial-row" class="dial-row">
-            <button id="glitchify-btn" class="glitchify-btn" title="Random glitch (G)">
+        <section id="glitchify-row">
+            <button id="glitchify-btn" class="glitchify-btn" title="Random stack (G)">
                 <span class="glitchify-bg"></span>
                 <span class="glitchify-label">GLITCHIFY</span>
             </button>
-            <label class="intensity">
-                <span class="intensity-label">INTENSITY</span>
-                <input id="intensity" class="intensity-slider" type="range" min="0" max="100" value="60" aria-label="Intensity">
-                <span id="intensity-value" class="intensity-value">60</span>
-            </label>
+            <button id="reroll-all-btn" class="reroll-all-btn" title="Re-roll all effects (R)" aria-label="Re-roll all">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="3"/>
+                    <circle cx="8" cy="8" r="1.2" fill="currentColor" stroke="none"/>
+                    <circle cx="16" cy="8" r="1.2" fill="currentColor" stroke="none"/>
+                    <circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/>
+                    <circle cx="8" cy="16" r="1.2" fill="currentColor" stroke="none"/>
+                    <circle cx="16" cy="16" r="1.2" fill="currentColor" stroke="none"/>
+                </svg>
+                <span>RE-ROLL ALL</span>
+            </button>
         </section>
 
-        <section id="preset-rail-wrap" class="preset-rail-wrap">
-            <div id="preset-rail" class="preset-rail" role="tablist" aria-label="Glitch presets"></div>
+        <section id="stack-section">
+            <div class="stack-header">
+                <span class="stack-label">STACK</span>
+                <button id="add-effect-btn" class="add-effect-btn" type="button" aria-haspopup="menu" aria-expanded="false">
+                    <span class="add-effect-plus">+</span>
+                    <span>ADD EFFECT</span>
+                </button>
+                <div id="effect-picker" class="effect-picker" role="menu" aria-label="Effects"></div>
+            </div>
+            <div id="stack-list" class="stack-list"></div>
+        </section>
+
+        <section id="starter-rail-wrap" class="starter-rail-wrap">
+            <span class="starter-label">START</span>
+            <div id="starter-rail" class="starter-rail" role="tablist" aria-label="Starter chains"></div>
         </section>
 
         <footer id="bottom-bar">

@@ -1,11 +1,12 @@
 # Glitcher — Design
 
-State-of-the-art glitch art application. Uses Noisemaker's corrupt/glitch/feedback/lens effects with camera and media input.
+Glitch-art tool. Build a stack of glitch effects, dial each one, re-roll any of them, or hit GLITCHIFY for chaos.
 
 ## Concept
 
-A focused glitch-art tool. Unlike Photobox (single effect per photo), Glitcher's identity is **layered destruction**:
-multiple effects stacked into chaotic chains, dialed by intensity, randomized at the tap of a button.
+Glitcher is **layered destruction**. The user picks effects one at a time and stacks them. Each slot has a slider that lerps between the effect's neutral defaults and a randomized snapshot of its parameters; a dice button rerolls just that effect's snapshot. The stack is the API — presets are just one-tap stack populators.
+
+Aims for the response *"yeah"* from a glitch-art person, not *"looks like an Instagram filter."*
 
 ## Inputs
 
@@ -20,44 +21,67 @@ multiple effects stacked into chaotic chains, dialed by intensity, randomized at
 - Filmstrip + IndexedDB persistence; download to disk
 - Everything stays local
 
-## Effects (Noisemaker)
+## Effects (glitch catalog)
 
-Pulled from the corruption-class end of `noisemaker/shaders/effects/filter/`:
-
-| Effect | Role |
+| Effect | Vibe |
 | --- | --- |
-| `chromaticAberration` | RGB color fringing |
-| `corrupt` | Scanline data corruption (bands, sort, shift, channelShift) |
-| `crt` | CRT monitor simulation |
-| `scanlineError` | VHS-style horizontal tears |
+| `corrupt` | Datamosh — scanline data corruption |
+| `pixelSort` | Brightness-sorted glitch |
+| `scanlineError` | VHS horizontal tears |
 | `snow` | TV static |
+| `chromaticAberration` | RGB fringing |
+| `crt` | CRT phosphor + curvature |
+| `degauss` | CRT magnetic pulse |
+| `lensWarp` | Noise-driven radial lens |
+| `convolutionFeedback` | Sharpen/blur feedback datamosh |
+| `pinch` | Fish-eye |
+| `waves` | Sine displacement |
+| `spiral` | Spiral lens vortex |
+| `edge` | Edge-detect outlines |
+| `invert` | Color inversion |
 | `grain` | Film grain |
-| `degauss` | CRT degauss pulse |
-| `lensWarp` | Noise-driven radial lens distortion |
-| `pixelSort` | Brightness-sorted pixel glitch |
-| `convolutionFeedback` | Sharpen/blur feedback (datamosh feel) |
 | `lightLeak` | Analog film burn |
-| `bloom` / `waves` / `spiral` / `seamless` / `flipMirror` / `edge` / `celShading` / `grade` / `invert` / `pinch` | Polish & shape |
 
-## Glitch Presets
+Each entry declares:
 
-15 presets, each a multi-effect DSL chain:
+- `defaults` — neutral / barely-on parameter values (the value at intensity=0)
+- `randomize()` — returns a rolled snapshot of params (the value at intensity=100)
+- `paramSpecs` — per-param `{ type, min, max }` for safe lerp + clamping
 
-- **Datamosh** — `corrupt` + `chromaticAberration`
-- **Dead Tape** — `scanlineError` + `snow` + `grain`
-- **CRT** — `crt` + `chromaticAberration`
-- **Drift** — `waves` × 2 + `chromaticAberration`
-- **Slice** — `pixelSort` + `chromaticAberration`
-- **Hexed** — `seamless` + `spiral` + `chromaticAberration`
-- **Burnout** — `bloom` + `lightLeak` + `grain`
-- **Phantom** — `convolutionFeedback` + `chromaticAberration`
-- **Static** — `degauss` + `snow` + `grain`
-- **Pinch** — `pinch` + `chromaticAberration`
-- **Wormhole** — `lensWarp` + `spiral` + `chromaticAberration`
-- **Mirrors** — `flipMirror` + `waves` + `chromaticAberration`
-- **Edges** — `edge` + `chromaticAberration`
-- **Noir** — `celShading` + `grade(preset: noir)` + `chromaticAberration`
-- **Invert** — `invert` + `scanlineError` + `chromaticAberration`
+## Stack
+
+A stack is an ordered list of slots:
+
+```
+{ uid, effectId, intensity (0..100), rolled (param snapshot) }
+```
+
+At any moment, the params sent to the GPU for a slot are `lerp(effect.defaults, slot.rolled, slot.intensity / 100)`.
+
+Slot indexing into the renderer: `media()` is `step_0`. The first stack slot is `step_1`, second `step_2`, etc. Live param updates land via `renderer.setStepParameters({ step_N: { ... } })` — no shader recompile.
+
+### Recompile vs live
+
+The Noisemaker renderer supports `applyStepParameterValues` mid-stream. That covers:
+
+- Intensity slider drag (per slot)
+- Dice re-roll (per slot or all-at-once)
+
+Recompile (slow path, under the `Lock`) is required when the chain itself changes:
+
+- Add effect
+- Remove effect
+- Reorder
+- Replace via starter chain
+- GLITCHIFY (rebuilds composition)
+
+The `Lock` coalesces structural changes the same way preset clicks used to.
+
+## Starter chains
+
+A small set of curated multi-effect starting points that populate the stack as a starting state. They are not the API — the stack is.
+
+Datamosh • Dead Tape • CRT • Slice • Static • Wormhole • Phantom • Edges • Negative • Drift
 
 ## UI
 
@@ -67,17 +91,36 @@ Layout (desktop):
 +-------------------------------------------+
 |             [Stage: full canvas]          |
 |                                           |
-|                                           |
 +-------------------------------------------+
-| [GLITCHIFY] [intensity: ============o ]   |
+| [GLITCHIFY]                  [RE-ROLL ALL]|
 +-------------------------------------------+
-| [Datamosh] [Dead Tape] [CRT] [Drift] ...  |  <- horizontal preset rail
+| STACK            [+ ADD EFFECT]           |
+|  ⋮ Corrupt     🎲 ━━●━━━ 60  ×           |
+|  ⋮ PixelSort   🎲 ●━━━━━ 18  ×           |
+|  ⋮ CRT         🎲 ━━━━●━ 90  ×           |
++-------------------------------------------+
+| START  Datamosh • Dead Tape • CRT • …     |
 +-------------------------------------------+
 | [📷|🎥] [shutter] [upload] [filmstrip]    |
 +-------------------------------------------+
 ```
 
-Layout (mobile): same components stacked. Preset rail scrolls horizontally.
+- Drag handle (`⋮`) reorders within the stack
+- 🎲 rerolls the slot's snapshot (live)
+- × removes the slot (recompile)
+- `+ ADD EFFECT` opens a picker of all effects
+- Starter chips replace the whole stack (recompile)
+
+Mobile: stack rows keep their grid; starters scroll horizontally; the stack section can scroll vertically if it overflows.
+
+## Keyboard
+
+| Key | Action |
+|-----|--------|
+| `g` | GLITCHIFY (rebuild random stack) |
+| `r` | Re-roll all slots (composition unchanged) |
+| Space | Shutter (capture) |
+| `m` | Mirror flip |
 
 ## Architecture
 
@@ -86,50 +129,43 @@ glitcher/
 ├── package.json
 ├── README.md
 ├── DESIGN.md
+├── docs/superpowers/specs/    Design history
 └── public/
     ├── index.html
     ├── manifest.json
     ├── icon.svg
     ├── css/
-    │   ├── colors.css        Tokens
-    │   ├── layout.css        Page layout
-    │   └── components.css    Buttons, sliders, chips
+    │   ├── colors.css
+    │   ├── layout.css
+    │   └── components.css
     └── js/
-        ├── app.js            Main controller
-        ├── source.js         Camera + image upload source manager
-        ├── presets.js        Glitch preset definitions
-        ├── glitchify.js      Random preset/intensity generator
-        ├── capture.js        Photo / video capture (lifted from photobox)
-        ├── gallery.js        Filmstrip + IndexedDB (lifted from photobox)
-        ├── db.js             IndexedDB helpers (lifted from photobox)
-        ├── swipe.js          Swipe gestures (lifted from photobox)
-        ├── about-dialog.js   About modal
-        └── noisemaker/       Renderer wrapper (lifted from photobox)
+        ├── app.js              Top-level coordinator
+        ├── source.js           MediaSource (camera + image upload)
+        ├── effects.js          Effect catalog (defaults + randomize + specs)
+        ├── stack.js            EffectStack (slot list + DSL emit + lerp)
+        ├── stack-editor.js     DOM view + interactions
+        ├── starter-chains.js   Curated multi-effect starting stacks
+        ├── capture-controller.js
+        ├── capture.js
+        ├── gallery.js
+        ├── db.js
+        ├── keyboard.js
+        ├── lock.js
+        ├── about-dialog.js
+        └── noisemaker/
             ├── index.js
             ├── bundle.js
             └── renderer.js
 ```
 
-## Intensity
-
-Each preset declares a list of `intensityParams` — effect-step parameter
-references that scale with the intensity slider. Updating the slider calls
-`applyStepParameterValues` on the renderer without recompiling, so it feels
-live.
-
-## Glitchify
-
-Picks a random preset, randomizes intensity (50–100), and applies. Also
-adds a subtle screen flash (the "act of glitching").
-
 ## Tech
 
 - Pure client-side, vanilla ES modules
 - Noisemaker via `shaders.noisedeck.app` CDN
-- Handfish design system tokens + AboutDialog via `handfish.noisefactor.io`
+- Handfish design tokens + AboutDialog via `handfish.noisefactor.io`
 - `http-server` for `npm run dev`
-- Playwright for tests (not implemented in initial cut — TODO)
+- Playwright for smoke tests
 
 ## License
 
-MIT. Open source.
+MIT.

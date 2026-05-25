@@ -2,21 +2,20 @@
 /**
  * Keyboard shortcut bindings for Glitcher.
  *
- *   g           — GLITCHIFY
- *   space       — capture (photo or video toggle, depending on mode)
- *   ← / →       — previous / next preset
- *   m           — mirror flip
+ *   g        — GLITCHIFY (rebuild random stack)
+ *   space    — capture (photo or video toggle, depending on mode)
+ *   m        — mirror flip
+ *   r        — re-roll all snapshots in current stack (keeps composition)
  *
  * Ignores key events that originate inside input/textarea/select so users
  * can type freely if a future feature adds a text field.
  */
 
 const HANDLERS = {
-    'g':           a => a.onGlitchify?.(),
-    ' ':           a => a.onCapture?.(),
-    'arrowleft':   a => a.onPrev?.(),
-    'arrowright':  a => a.onNext?.(),
-    'm':           a => a.onMirror?.()
+    'g':  a => a.onGlitchify?.(),
+    ' ':  a => a.onCapture?.(),
+    'm':  a => a.onMirror?.(),
+    'r':  a => a.onRerollAll?.()
 }
 
 export function wireKeyboard(actions) {

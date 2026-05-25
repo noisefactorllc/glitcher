@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: MIT
 import { defineConfig } from '@playwright/test'
 
+const PORT = Number(process.env.GLITCHER_PORT) || 3007
+
 export default defineConfig({
     testDir: './tests',
     timeout: 30000,
     use: {
-        baseURL: 'http://localhost:3007',
+        baseURL: `http://localhost:${PORT}`,
         permissions: ['camera'],
         launchOptions: {
             args: [
@@ -15,8 +17,8 @@ export default defineConfig({
         },
     },
     webServer: {
-        command: 'npx http-server public -p 3007 -c-1',
-        port: 3007,
+        command: `npx http-server public -p ${PORT} -c-1`,
+        port: PORT,
         reuseExistingServer: true,
     },
 })

@@ -1,5 +1,5 @@
 /* ============================================================
-   Buttons (icon + chip + shutter)
+   Buttons (icon + shutter)
    ============================================================ */
 
 .icon-btn {
@@ -127,7 +127,8 @@
         1px 0 0 rgba(255, 0, 144, 0.7),
         -1px 0 0 rgba(0, 245, 255, 0.7);
     transition: transform 0.08s, box-shadow 0.15s;
-    flex-shrink: 0;
+    flex: 1;
+    min-width: 0;
 }
 
 .glitchify-bg {
@@ -174,96 +175,324 @@
 }
 
 /* ============================================================
-   Intensity slider
+   RE-ROLL ALL button (sibling of GLITCHIFY)
    ============================================================ */
 
-.intensity {
-    flex: 1;
-    display: grid;
-    grid-template-columns: auto 1fr auto;
+.reroll-all-btn {
+    display: inline-flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
+    height: 44px;
+    padding: 0 14px;
+    background: transparent;
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    transition: all 0.15s;
+    flex-shrink: 0;
+}
+
+.reroll-all-btn:hover {
+    border-color: var(--accent-cyan);
+    color: var(--text);
+    box-shadow: var(--shadow-cyan);
+}
+
+/* ============================================================
+   Stack slots
+   ============================================================ */
+
+.stack-empty {
+    padding: 16px 12px;
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 12px;
+    border: 1px dashed var(--border);
+    border-radius: 6px;
+}
+
+.stack-slot {
+    display: grid;
+    grid-template-columns: auto minmax(90px, 130px) 1fr auto auto;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 10px;
     background: var(--bg);
     border: 1px solid var(--border);
     border-radius: 6px;
-    padding: 0 14px;
+    cursor: grab;
+    transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+    position: relative;
+}
+
+.stack-slot:hover {
+    border-color: var(--accent-cyan);
+}
+
+.stack-slot.dragging {
+    opacity: 0.5;
+    cursor: grabbing;
+}
+
+.stack-slot.drag-over-top {
+    box-shadow: 0 -2px 0 0 var(--accent-magenta);
+}
+
+.stack-slot.drag-over-bottom {
+    box-shadow: 0 2px 0 0 var(--accent-magenta);
+}
+
+.slot-handle {
+    color: var(--text-dim);
+    cursor: grab;
+    font-size: 14px;
+    line-height: 1;
+    letter-spacing: -2px;
+    user-select: none;
+    width: 12px;
+    text-align: center;
+}
+
+.slot-name {
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-shadow:
+        1px 0 0 rgba(255, 0, 144, 0.25),
+        -1px 0 0 rgba(0, 245, 255, 0.25);
+}
+
+.slot-intensity {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 10px;
     min-width: 0;
 }
 
-.intensity-label {
-    color: var(--text-dim);
-    font-size: 10px;
-    letter-spacing: 0.22em;
-}
-
-.intensity-value {
-    color: var(--accent-cyan);
-    font-variant-numeric: tabular-nums;
-    font-size: 12px;
-    font-weight: 700;
-    width: 28px;
-    text-align: right;
-    text-shadow: 0 0 10px rgba(0, 245, 255, 0.6);
-}
-
-.intensity-slider {
+.slot-intensity-slider {
     -webkit-appearance: none;
     appearance: none;
     background: transparent;
     width: 100%;
-    height: 36px;
+    height: 28px;
     cursor: pointer;
 }
 
-.intensity-slider::-webkit-slider-runnable-track {
-    height: 4px;
+.slot-intensity-slider::-webkit-slider-runnable-track {
+    height: 3px;
     background: linear-gradient(90deg, var(--accent-magenta) 0%, var(--accent-cyan) 100%);
     border-radius: 2px;
 }
 
-.intensity-slider::-moz-range-track {
-    height: 4px;
+.slot-intensity-slider::-moz-range-track {
+    height: 3px;
     background: linear-gradient(90deg, var(--accent-magenta) 0%, var(--accent-cyan) 100%);
     border-radius: 2px;
 }
 
-.intensity-slider::-webkit-slider-thumb {
+.slot-intensity-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
     background: var(--text);
     border-radius: 50%;
     border: 2px solid var(--bg);
     margin-top: -6px;
     cursor: pointer;
-    box-shadow: 0 0 12px rgba(255, 255, 255, 0.7);
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.7);
 }
 
-.intensity-slider::-moz-range-thumb {
-    width: 16px;
-    height: 16px;
+.slot-intensity-slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
     background: var(--text);
     border-radius: 50%;
     border: 2px solid var(--bg);
     cursor: pointer;
-    box-shadow: 0 0 12px rgba(255, 255, 255, 0.7);
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.7);
+}
+
+.slot-intensity-value {
+    color: var(--accent-cyan);
+    font-variant-numeric: tabular-nums;
+    font-size: 11px;
+    font-weight: 700;
+    width: 26px;
+    text-align: right;
+    text-shadow: 0 0 8px rgba(0, 245, 255, 0.6);
+}
+
+.slot-dice {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    flex-shrink: 0;
+}
+
+.slot-dice:hover {
+    border-color: var(--accent-cyan);
+    color: var(--accent-cyan);
+    box-shadow: var(--shadow-cyan);
+}
+
+.slot-dice.rolling {
+    animation: dice-roll 0.45s ease-out;
+}
+
+@keyframes dice-roll {
+    0%   { transform: rotate(0deg); }
+    50%  { transform: rotate(180deg) scale(1.15); }
+    100% { transform: rotate(360deg); }
+}
+
+.slot-remove {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-dim);
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: all 0.15s;
+    flex-shrink: 0;
+}
+
+.slot-remove:hover {
+    color: var(--accent-magenta);
+    border-color: var(--accent-magenta);
 }
 
 /* ============================================================
-   Preset chips
+   Add-effect button + picker
    ============================================================ */
 
-.preset-chip {
+.add-effect-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    border: 1px dashed var(--border);
+    color: var(--text-dim);
+    padding: 4px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    transition: all 0.15s;
+}
+
+.add-effect-btn:hover,
+.add-effect-btn.active {
+    border-color: var(--accent-cyan);
+    border-style: solid;
+    color: var(--text);
+    box-shadow: var(--shadow-cyan);
+}
+
+.add-effect-plus {
+    font-size: 14px;
+    font-weight: 900;
+    color: var(--accent-cyan);
+}
+
+.effect-picker {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 6px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--accent-cyan);
+    border-radius: 8px;
+    padding: 6px;
+    display: none;
+    flex-direction: column;
+    gap: 2px;
+    z-index: 50;
+    min-width: 240px;
+    max-height: 320px;
+    overflow-y: auto;
+    box-shadow:
+        0 12px 32px rgba(0, 0, 0, 0.5),
+        0 0 28px rgba(0, 245, 255, 0.2);
+}
+
+.effect-picker.open {
+    display: flex;
+}
+
+.effect-picker-item {
+    background: transparent;
+    border: none;
+    color: var(--text);
+    text-align: left;
+    padding: 8px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: inherit;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    transition: background 0.1s;
+}
+
+.effect-picker-item:hover {
+    background: rgba(0, 245, 255, 0.12);
+}
+
+.picker-name {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+}
+
+.picker-tag {
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.04em;
+}
+
+/* ============================================================
+   Starter chips
+   ============================================================ */
+
+.starter-chip {
     flex-shrink: 0;
     scroll-snap-align: start;
     background: transparent;
     border: 1px solid var(--border);
     color: var(--text-dim);
     font-family: inherit;
-    font-size: 12px;
+    font-size: 11px;
     letter-spacing: 0.12em;
-    padding: 8px 16px;
+    padding: 6px 12px;
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.15s;
@@ -272,25 +501,10 @@
     position: relative;
 }
 
-.preset-chip:hover {
+.starter-chip:hover {
     color: var(--text);
     border-color: var(--accent-cyan);
-}
-
-.preset-chip.active {
-    color: var(--text);
-    border-color: var(--accent-magenta);
-    background: rgba(255, 0, 144, 0.12);
-    text-shadow: var(--shadow-pink);
-}
-
-.preset-chip.active::before {
-    content: '';
-    position: absolute;
-    inset: -1px;
-    border-radius: 6px;
-    pointer-events: none;
-    box-shadow: 0 0 14px rgba(255, 0, 144, 0.45);
+    text-shadow: var(--shadow-cyan);
 }
 
 /* ============================================================
@@ -459,7 +673,7 @@
 
 .hidden { display: none !important; }
 
-button, .preset-chip {
+button, .starter-chip, .effect-picker-item {
     touch-action: manipulation;
 }
 
@@ -487,4 +701,14 @@ dialog:focus { outline: none; }
 dialog::backdrop {
     background: rgba(8, 0, 16, 0.7);
     backdrop-filter: blur(4px);
+}
+
+/* On narrow viewports keep the slot row legible */
+@media (max-width: 600px) {
+    .stack-slot {
+        grid-template-columns: auto minmax(70px, 100px) 1fr auto auto;
+        gap: 8px;
+        padding: 6px 8px;
+    }
+    .slot-name { font-size: 11px; letter-spacing: 0.06em; }
 }

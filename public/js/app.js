@@ -1,12 +1,17 @@
 // SPDX-License-Identifier: MIT
 /**
- * Glitcher — State-of-the-art glitch art tool powered by Noisemaker.
+ * Glitcher — glitch-art tool powered by Noisemaker.
  *
- * This module is the top-level coordinator. Subsystems live in:
+ * Top-level coordinator. Owns the EffectStack and decides whether each
+ * model change is "live" (push params to the renderer mid-stream) or
+ * "structural" (recompile the DSL). Subsystems:
+ *
  *   - source.js              MediaSource (camera + image upload)
  *   - noisemaker/renderer.js GlitcherRenderer (DSL compile + texture upload)
- *   - presets.js             Preset definitions (DSL builders + liveParams)
- *   - preset-rail.js         PresetRail (chip rail / readout / slider view)
+ *   - effects.js             Effect catalog (defaults, randomize, paramSpecs)
+ *   - stack.js               EffectStack (slot list, DSL + live-params emit)
+ *   - stack-editor.js        StackEditor (DOM view + interactions)
+ *   - starter-chains.js      Curated multi-effect starting stacks
  *   - capture-controller.js  CaptureController (photo / video mode + recording)
  *   - keyboard.js            wireKeyboard (keyboard shortcuts)
  *   - gallery.js             Gallery (filmstrip + IndexedDB)
@@ -15,12 +20,12 @@
 
 import { GlitcherRenderer } from './noisemaker/index.js'
 import { MediaSource } from './source.js'
-import { PRESETS } from './presets.js'
-import { PresetRail } from './preset-rail.js'
+import { EffectStack, pickRandomEffectIds } from './stack.js'
+import { StackEditor } from './stack-editor.js'
+import { STARTERS } from './starter-chains.js'
 import { Gallery } from './gallery.js'
 import { CaptureController } from './capture-controller.js'
 import { wireKeyboard } from './keyboard.js'
-import { enableSwipe } from './swipe.js'
 import { Lock } from './lock.js'
 import { aboutDialog } from './about-dialog.js'
 
@@ -30,21 +35,18 @@ class GlitcherApp {
         this._source = new MediaSource()
         this._renderer = null
         this._gallery = null
-        this._rail = null
+        this._editor = null
         this._capture = null
         this._lock = new Lock()
 
-        this._currentPresetIdx = 0
-        this._intensity = 60
+        this._stack = new EffectStack()
 
-        // Coalescing queue: rapid preset clicks land here while the renderer
-        // lock is busy. Whoever currently holds the lock drains the queue
-        // before releasing it, so the user lands on the last tap, not the first.
-        this._pendingPresetIdx = null
-        this._pendingPulse = false
+        // Coalescing flag: structural changes coming in while a recompile
+        // is in flight are merged — the lock-holder re-checks _dirty on
+        // each loop iteration and recompiles once more if it changed.
+        this._dirty = false
 
         this._cameraCount = null
-        this._swipe = null
     }
 
     async init() {
@@ -80,12 +82,20 @@ class GlitcherApp {
         await this._renderer.init()
         if (cameraStarted) this._renderer.setSource(this._source.element)
 
-        this._rail = new PresetRail({
-            presets: PRESETS,
-            onChipClick: (idx) => this._applyPreset(idx),
-            onIntensityInput: (v) => this._onIntensityChanged(v)
+        // Default starting stack so the canvas isn't bare on first paint.
+        this._stack.replace(STARTERS[0].slots)
+
+        this._editor = new StackEditor({
+            stack: this._stack,
+            starters: STARTERS,
+            onIntensityInput: (uid, v) => this._onSlotIntensity(uid, v),
+            onReroll:         (uid)    => this._onSlotReroll(uid),
+            onRemove:         (uid)    => this._onSlotRemove(uid),
+            onMove:           (uid, i) => this._onSlotMove(uid, i),
+            onAdd:            (id)     => this._onAddEffect(id),
+            onStarter:        (i)      => this._onStarter(i)
         })
-        this._rail.init(this._intensity)
+        this._editor.init()
 
         this._capture = new CaptureController({
             canvas,
@@ -99,13 +109,12 @@ class GlitcherApp {
         wireKeyboard({
             onGlitchify: () => this._glitchify(),
             onCapture:   () => this._capture.trigger(),
-            onPrev:      () => this._cyclePreset(-1),
-            onNext:      () => this._cyclePreset(1),
-            onMirror:    () => document.getElementById('mirror-btn').click()
+            onMirror:    () => document.getElementById('mirror-btn').click(),
+            onRerollAll: () => this._rerollAll()
         })
 
         if (cameraStarted) {
-            await this._applyPreset(this._currentPresetIdx, false)
+            await this._recompile()
             await this._checkMultipleCameras()
         }
 
@@ -114,85 +123,106 @@ class GlitcherApp {
     }
 
     // ============================================================
-    // Preset application + coalescing queue
+    // Recompile path (structural changes — add/remove/reorder/starter)
     // ============================================================
 
-    /** Compile the currently selected preset against the current source. */
-    async _compileCurrent() {
-        const preset = PRESETS[this._currentPresetIdx]
-        if (!preset || !this._renderer) return
-        const i = this._intensity / 100
-        this._renderer.clearStepParameters()
-        this._renderer.setStepParameters(preset.liveParams(i))
-        await this._renderer.compile(preset.build(i))
-    }
-
     /**
-     * Apply a preset. Rapid clicks coalesce — if the user clicks several
-     * chips while a compile is in flight, the latest request is applied
-     * once the in-flight work resolves.
+     * Build the current DSL and push live params. Coalesces — if another
+     * structural change lands while we're compiling, we loop again.
      */
-    async _applyPreset(idx, pulse = true) {
-        this._pendingPresetIdx = idx
-        if (pulse) this._pendingPulse = true
+    async _recompile() {
+        this._dirty = true
         if (this._lock.isHeld()) return
         this._lock.acquire()
         try {
-            await this._drainPresetQueue()
+            while (this._dirty) {
+                this._dirty = false
+                const dsl = this._stack.buildDsl()
+                this._renderer.clearStepParameters()
+                this._renderer.setStepParameters(this._stack.buildLiveParams())
+                try {
+                    await this._renderer.compile(dsl)
+                } catch (err) {
+                    console.error('[Glitcher] Compile failed:', err)
+                }
+            }
         } finally {
             this._lock.release()
         }
     }
 
-    /** Apply every pending preset request. Caller must hold the lock. */
-    async _drainPresetQueue() {
-        while (this._pendingPresetIdx !== null) {
-            const target = this._pendingPresetIdx
-            const shouldPulse = this._pendingPulse
-            this._pendingPresetIdx = null
-            this._pendingPulse = false
-
-            const preset = PRESETS[target]
-            if (!preset) continue
-            this._currentPresetIdx = target
-            this._rail.setActiveChip(target)
-            this._rail.setReadout(preset.name)
-            try {
-                await this._compileCurrent()
-                if (shouldPulse) PresetRail.showGlitchPulse()
-            } catch (err) {
-                console.error('[Glitcher] Preset compile failed:', err)
-            }
-        }
+    /** Push current per-slot params live (no recompile). */
+    _pushLive() {
+        if (!this._renderer) return
+        this._renderer.setStepParameters(this._stack.buildLiveParams())
     }
 
-    _onIntensityChanged(value) {
-        this._intensity = value
-        this._rail.setIntensity(value)
-        const preset = PRESETS[this._currentPresetIdx]
-        if (!preset) return
-        this._renderer.setStepParameters(preset.liveParams(value / 100))
+    // ============================================================
+    // Slot event handlers
+    // ============================================================
+
+    _onSlotIntensity(uid, value) {
+        if (!this._stack.setIntensity(uid, value)) return
+        this._pushLive()
     }
 
-    _cyclePreset(direction) {
-        let next = this._currentPresetIdx + direction
-        if (next < 0) next = PRESETS.length - 1
-        if (next >= PRESETS.length) next = 0
-        this._applyPreset(next)
+    _onSlotReroll(uid) {
+        if (!this._stack.reroll(uid)) return
+        this._editor.pulseReroll(uid)
+        this._pushLive()
     }
 
+    _onSlotRemove(uid) {
+        if (!this._stack.remove(uid)) return
+        this._editor.renderStack()
+        this._recompile()
+    }
+
+    _onSlotMove(uid, toIndex) {
+        if (!this._stack.move(uid, toIndex)) return
+        this._editor.renderStack()
+        this._recompile()
+    }
+
+    _onAddEffect(effectId) {
+        this._stack.add(effectId, 60)
+        this._editor.renderStack()
+        this._recompile()
+    }
+
+    _onStarter(starterIdx) {
+        const starter = STARTERS[starterIdx]
+        if (!starter) return
+        this._stack.replace(starter.slots)
+        this._editor.renderStack()
+        this._recompile()
+    }
+
+    // ============================================================
+    // Global glitch actions
+    // ============================================================
+
+    /** Build a new random stack of 2-4 effects, then recompile. */
     async _glitchify() {
-        let next = this._currentPresetIdx
-        if (PRESETS.length > 1) {
-            while (next === this._currentPresetIdx) {
-                next = Math.floor(Math.random() * PRESETS.length)
-            }
-        }
-        const value = Math.floor(50 + Math.random() * 50)
-        this._intensity = value
-        this._rail.setIntensity(value)
-        this._rail.pulseGlitchifyButton()
-        await this._applyPreset(next, true)
+        const n = 2 + Math.floor(Math.random() * 3) // 2..4
+        const ids = pickRandomEffectIds(n)
+        const specs = ids.map(id => ({
+            effectId: id,
+            intensity: Math.floor(50 + Math.random() * 51)
+        }))
+        this._stack.replace(specs)
+        this._editor.renderStack()
+        this._editor.pulseGlitchifyButton()
+        StackEditor.showGlitchPulse()
+        await this._recompile()
+    }
+
+    /** Re-roll every slot's snapshot without changing composition. */
+    _rerollAll() {
+        if (this._stack.isEmpty) return
+        this._stack.rerollAll()
+        for (const slot of this._stack.slots) this._editor.pulseReroll(slot.uid)
+        this._pushLive()
     }
 
     // ============================================================
@@ -209,8 +239,10 @@ class GlitcherApp {
             document.getElementById('camera-btn').classList.remove('active')
             document.getElementById('upload-btn').classList.add('active')
             document.getElementById('error-banner').classList.add('hidden')
-            await this._compileCurrent()
-            await this._drainPresetQueue()
+            const dsl = this._stack.buildDsl()
+            this._renderer.clearStepParameters()
+            this._renderer.setStepParameters(this._stack.buildLiveParams())
+            await this._renderer.compile(dsl)
         } catch (err) {
             console.error('[Glitcher] Image load failed:', err)
         } finally {
@@ -230,8 +262,10 @@ class GlitcherApp {
             document.getElementById('camera-btn').classList.add('active')
             document.getElementById('error-banner').classList.add('hidden')
             await this._checkMultipleCameras()
-            await this._compileCurrent()
-            await this._drainPresetQueue()
+            const dsl = this._stack.buildDsl()
+            this._renderer.clearStepParameters()
+            this._renderer.setStepParameters(this._stack.buildLiveParams())
+            await this._renderer.compile(dsl)
         } catch (err) {
             console.error('[Glitcher] Camera start failed:', err)
             document.getElementById('error-banner').classList.remove('hidden')
@@ -271,20 +305,12 @@ class GlitcherApp {
     }
 
     // ============================================================
-    // Top-level control wiring (everything not owned by a subsystem)
+    // Top-level control wiring
     // ============================================================
 
     _wireControls() {
-        // Swipe on the canvas cycles presets
-        this._swipe = enableSwipe(document.querySelector('.canvas-wrap'), {
-            onSwipeLeft: () => this._cyclePreset(1),
-            onSwipeRight: () => this._cyclePreset(-1)
-        })
-
-        // GLITCHIFY
         document.getElementById('glitchify-btn').addEventListener('click', () => this._glitchify())
 
-        // Source buttons
         document.getElementById('camera-btn').classList.add('active')
         document.getElementById('camera-btn').addEventListener('click', () => this._useCamera())
         document.getElementById('camera-flip-btn').addEventListener('click', () => this._switchCamera())
@@ -294,19 +320,16 @@ class GlitcherApp {
         document.getElementById('file-input').addEventListener('change', (e) => {
             const file = e.target.files?.[0]
             if (file) this._useUploadedImage(file)
-            e.target.value = '' // allow re-selecting the same file
+            e.target.value = ''
         })
 
-        // Mirror flip
         document.getElementById('mirror-btn').addEventListener('click', () => {
             document.getElementById('app').classList.toggle('mirrored')
             document.getElementById('mirror-btn').classList.toggle('active')
         })
 
-        // About
         document.getElementById('about-btn').addEventListener('click', () => aboutDialog.show())
 
-        // Pause renderer when tab is hidden
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) this._renderer?.stop()
             else this._renderer?.resume()

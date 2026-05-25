@@ -1,31 +1,26 @@
 // SPDX-License-Identifier: MIT
 import { test, expect } from '@playwright/test'
 
+const MIN_PNG = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+    'base64'
+)
+
 test.describe('Glitcher smoke', () => {
-    test('boots, applies presets, captures a photo', async ({ page }) => {
+    test('boots, loads default stack, switches starter, captures a photo', async ({ page }) => {
         await page.goto('/')
 
-        // Wait for renderer to be ready
         await expect(page.locator('#stage-canvas')).toBeVisible()
-        await expect(page.locator('.preset-chip')).toHaveCount(15)
-        await expect(page.locator('#effect-readout')).toContainText('Datamosh')
+
+        // Default starter (Datamosh) populates the stack on boot
+        await expect(page.locator('.starter-chip')).toHaveCount(10)
+        await expect(page.locator('.stack-slot')).not.toHaveCount(0)
         await page.waitForTimeout(2500)
 
-        // Switch preset via chip click
-        await page.locator('.preset-chip', { hasText: 'CRT' }).click()
+        // Tap a starter chip → stack rebuilds
+        await page.locator('.starter-chip', { hasText: 'CRT' }).click()
         await page.waitForTimeout(1500)
-        await expect(page.locator('#effect-readout')).toContainText('CRT')
-
-        // Intensity slider updates the live readout
-        await page.locator('#intensity').fill('90')
-        await expect(page.locator('#intensity-value')).toHaveText('90')
-
-        // GLITCHIFY randomizes to another preset
-        const readoutBefore = await page.locator('#effect-readout').textContent()
-        await page.click('#glitchify-btn')
-        await page.waitForTimeout(2500)
-        const readoutAfter = await page.locator('#effect-readout').textContent()
-        expect(readoutAfter).not.toEqual(readoutBefore)
+        await expect(page.locator('.stack-slot .slot-name', { hasText: 'CRT' })).toBeVisible()
 
         // Photo capture downloads a file
         const downloadPromise = page.waitForEvent('download', { timeout: 8000 })
@@ -37,33 +32,92 @@ test.describe('Glitcher smoke', () => {
         await expect(page.locator('.filmstrip-thumb').first()).toBeVisible()
     })
 
-    test('keyboard shortcuts work', async ({ page }) => {
+    test('per-slot intensity slider updates the live readout', async ({ page }) => {
         await page.goto('/')
         await page.waitForTimeout(3000)
 
-        const initialReadout = await page.locator('#effect-readout').textContent()
+        const firstSlider = page.locator('.stack-slot .slot-intensity-slider').first()
+        const firstValue = page.locator('.stack-slot .slot-intensity-value').first()
 
-        // Right arrow cycles to next preset
-        await page.locator('body').focus()
-        await page.keyboard.press('ArrowRight')
-        await page.waitForTimeout(1500)
-        const afterArrow = await page.locator('#effect-readout').textContent()
-        expect(afterArrow).not.toEqual(initialReadout)
+        await firstSlider.fill('90')
+        await expect(firstValue).toHaveText('90')
 
-        // 'g' triggers glitchify
-        await page.keyboard.press('g')
-        await page.waitForTimeout(2500)
-        const afterG = await page.locator('#effect-readout').textContent()
-        expect(afterG).toBeTruthy()
+        await firstSlider.fill('15')
+        await expect(firstValue).toHaveText('15')
     })
 
-    test('no horizontal page scroll after preset cycle', async ({ page }) => {
+    test('add-effect picker appends a slot to the stack', async ({ page }) => {
         await page.goto('/')
         await page.waitForTimeout(3000)
 
-        // Click last preset to maximally scroll the rail
-        await page.locator('.preset-chip').last().click()
-        await page.waitForTimeout(1200)
+        const initialCount = await page.locator('.stack-slot').count()
+        await page.click('#add-effect-btn')
+        await expect(page.locator('#effect-picker.open')).toBeVisible()
+
+        await page.locator('.effect-picker-item', { hasText: 'Pixel Sort' }).click()
+        await page.waitForTimeout(2000)
+
+        await expect(page.locator('#effect-picker.open')).toHaveCount(0)
+        await expect(page.locator('.stack-slot')).toHaveCount(initialCount + 1)
+        await expect(page.locator('.stack-slot .slot-name', { hasText: 'Pixel Sort' })).toBeVisible()
+    })
+
+    test('dice button on a slot triggers the roll animation', async ({ page }) => {
+        await page.goto('/')
+        await page.waitForTimeout(3000)
+
+        const firstDice = page.locator('.stack-slot .slot-dice').first()
+        await firstDice.click()
+        await expect(firstDice).toHaveClass(/rolling/)
+    })
+
+    test('slot remove button shrinks the stack', async ({ page }) => {
+        await page.goto('/')
+        await page.waitForTimeout(3000)
+
+        const initialCount = await page.locator('.stack-slot').count()
+        await page.locator('.stack-slot .slot-remove').first().click()
+        await page.waitForTimeout(1500)
+        await expect(page.locator('.stack-slot')).toHaveCount(initialCount - 1)
+    })
+
+    test('GLITCHIFY rebuilds the stack', async ({ page }) => {
+        await page.goto('/')
+        await page.waitForTimeout(3000)
+
+        const before = await page.locator('.stack-slot .slot-name').allTextContents()
+        await page.click('#glitchify-btn')
+        await page.waitForTimeout(2500)
+        const after = await page.locator('.stack-slot .slot-name').allTextContents()
+
+        // Composition or count should change; running it once shouldn't
+        // produce the exact same list (catalog has 16 effects, GLITCHIFY
+        // picks 2-4 random).
+        expect(after.join('|')).not.toEqual(before.join('|'))
+    })
+
+    test('keyboard: G glitchifies, R re-rolls', async ({ page }) => {
+        await page.goto('/')
+        await page.waitForTimeout(3000)
+
+        const before = await page.locator('.stack-slot .slot-name').allTextContents()
+        await page.locator('body').focus()
+        await page.keyboard.press('g')
+        await page.waitForTimeout(2500)
+        const after = await page.locator('.stack-slot .slot-name').allTextContents()
+        expect(after.join('|')).not.toEqual(before.join('|'))
+
+        // R should fire the rolling animation on at least one slot
+        await page.keyboard.press('r')
+        await expect(page.locator('.stack-slot .slot-dice.rolling').first()).toBeVisible()
+    })
+
+    test('no horizontal page scroll after starter cycle', async ({ page }) => {
+        await page.goto('/')
+        await page.waitForTimeout(3000)
+
+        await page.locator('.starter-chip').last().click()
+        await page.waitForTimeout(1500)
 
         const scrollX = await page.evaluate(() => window.scrollX)
         const docWidth = await page.evaluate(() => document.documentElement.scrollWidth)
@@ -72,75 +126,45 @@ test.describe('Glitcher smoke', () => {
         expect(docWidth).toBe(viewWidth)
     })
 
-    test('image upload swaps source and keeps effect rendering', async ({ page }) => {
+    test('image upload swaps source and keeps the stack rendering', async ({ page }) => {
         await page.goto('/')
         await page.waitForTimeout(3000)
 
-        // A minimal valid PNG (1×1 red pixel)
-        const pngBuffer = Buffer.from(
-            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
-            'base64'
-        )
-
-        // Switch to a heavy-corruption preset so the effect output is visibly different from the source
-        await page.locator('.preset-chip', { hasText: 'Datamosh' }).click()
+        await page.locator('.starter-chip', { hasText: 'Datamosh' }).click()
         await page.waitForTimeout(1500)
 
         await page.setInputFiles('#file-input', {
             name: 'test.png',
             mimeType: 'image/png',
-            buffer: pngBuffer
+            buffer: MIN_PNG
         })
         await page.waitForTimeout(2000)
 
-        // Upload button should be in the active state
         await expect(page.locator('#upload-btn')).toHaveClass(/active/)
         await expect(page.locator('#camera-btn')).not.toHaveClass(/active/)
-        // Effect readout should still show the preset (it was Datamosh)
-        await expect(page.locator('#effect-readout')).toContainText('Datamosh')
+        // Stack is preserved across the source swap
+        await expect(page.locator('.stack-slot .slot-name', { hasText: 'Corrupt' })).toBeVisible()
 
-        // Switching presets after upload still works (verifies _compileCurrent honors the image source)
-        await page.locator('.preset-chip', { hasText: 'CRT' }).click()
+        // Switching starter after upload still works
+        await page.locator('.starter-chip', { hasText: 'CRT' }).click()
         await page.waitForTimeout(1500)
-        await expect(page.locator('#effect-readout')).toContainText('CRT')
+        await expect(page.locator('.stack-slot .slot-name', { hasText: 'CRT' })).toBeVisible()
 
-        // And we can still capture a photo from the upload+effect chain
+        // And we can still capture a photo
         const downloadPromise = page.waitForEvent('download', { timeout: 8000 })
         await page.click('#shutter-btn')
         const dl = await downloadPromise
         expect(dl.suggestedFilename()).toMatch(/glitcher-\d+\.png/)
     })
 
-    test('rapid preset clicks coalesce to the last requested', async ({ page }) => {
-        await page.goto('/')
-        await page.waitForTimeout(3000)
-
-        // Click three presets in rapid succession before any compile can finish
-        await page.locator('.preset-chip', { hasText: 'Datamosh' }).click()
-        await page.waitForTimeout(40)
-        await page.locator('.preset-chip', { hasText: 'CRT' }).click()
-        await page.waitForTimeout(40)
-        await page.locator('.preset-chip', { hasText: 'Static' }).click()
-
-        // Wait for the coalesced work to fully settle
-        await page.waitForTimeout(4000)
-
-        // The LAST click should be the final state, not the first
-        await expect(page.locator('#effect-readout')).toContainText('Static')
-    })
-
     test('camera flag toggles back on after viewing an uploaded image', async ({ page }) => {
         await page.goto('/')
         await page.waitForTimeout(3000)
 
-        const pngBuffer = Buffer.from(
-            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
-            'base64'
-        )
         await page.setInputFiles('#file-input', {
             name: 'test.png',
             mimeType: 'image/png',
-            buffer: pngBuffer
+            buffer: MIN_PNG
         })
         await page.waitForTimeout(1500)
 
@@ -149,5 +173,26 @@ test.describe('Glitcher smoke', () => {
 
         await expect(page.locator('#camera-btn')).toHaveClass(/active/)
         await expect(page.locator('#upload-btn')).not.toHaveClass(/active/)
+    })
+
+    test('rapid structural changes coalesce into final stack state', async ({ page }) => {
+        await page.goto('/')
+        await page.waitForTimeout(3000)
+
+        // Click three starters in rapid succession before any compile can finish
+        await page.locator('.starter-chip', { hasText: 'Datamosh' }).click()
+        await page.waitForTimeout(40)
+        await page.locator('.starter-chip', { hasText: 'CRT' }).click()
+        await page.waitForTimeout(40)
+        await page.locator('.starter-chip', { hasText: 'Static' }).click()
+
+        await page.waitForTimeout(4000)
+
+        // Final stack should match the LAST starter (Static)
+        await expect(page.locator('.stack-slot .slot-name', { hasText: 'Degauss' })).toBeVisible()
+        await expect(page.locator('.stack-slot .slot-name', { hasText: 'Snow' })).toBeVisible()
+        // No leftover slots from earlier starters
+        await expect(page.locator('.stack-slot .slot-name', { hasText: 'Corrupt' })).toHaveCount(0)
+        await expect(page.locator('.stack-slot .slot-name', { hasText: 'CRT' })).toHaveCount(0)
     })
 })
