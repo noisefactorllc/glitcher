@@ -37,6 +37,41 @@ export const THEMES = [
     { value: 'kawaii',              file: 'kawaii',         label: 'Kawaii' },
 ]
 
+// Per-theme Blank font URL — null = active theme uses one of the always-on
+// fonts already preloaded by the inline head script.
+const THEME_BLANK = {
+    'neutral-dark': null, 'neutral-light': null,
+    'gray-dark': null, 'gray-light': null,
+    'brutalist': null, 'cyberpunk': null, 'terminal': null,
+    'corporate':           'https://fonts.noisefactor.io/fonts/inter/Inter-Blank.woff2',
+    'high-contrast-dark':  'https://fonts.noisefactor.io/fonts/atkinson-hyperlegible/AtkinsonHyperlegible-Blank.woff2',
+    'high-contrast-light': 'https://fonts.noisefactor.io/fonts/atkinson-hyperlegible/AtkinsonHyperlegible-Blank.woff2',
+    'newspaper':           'https://fonts.noisefactor.io/fonts/lora/Lora-Blank.woff2',
+    'gothic':              'https://fonts.noisefactor.io/fonts/crimson-pro/CrimsonPro-Blank.woff2',
+    'ocean':               'https://fonts.noisefactor.io/fonts/poppins/Poppins-Blank.woff2',
+    'dusk':                'https://fonts.noisefactor.io/fonts/cabin/Cabin-Blank.woff2',
+    'sunset':              'https://fonts.noisefactor.io/fonts/quicksand/Quicksand-Blank.woff2',
+    'earthy':              'https://fonts.noisefactor.io/fonts/roboto-slab/RobotoSlab-Blank.woff2',
+    'organic':             null,
+    'synthwave':           'https://fonts.noisefactor.io/fonts/tomorrow/Tomorrow-Blank.woff2',
+    'rave':                'https://fonts.noisefactor.io/fonts/comfortaa/Comfortaa-Blank.woff2',
+    'kawaii':              'https://fonts.noisefactor.io/fonts/baloo-2/Baloo2-Blank.woff2'
+}
+
+const _preloaded = new Set()
+function preloadThemeBlank(value) {
+    const url = THEME_BLANK[value]
+    if (!url || _preloaded.has(url)) return
+    _preloaded.add(url)
+    const link = document.createElement('link')
+    link.rel = 'preload'
+    link.as = 'font'
+    link.type = 'font/woff2'
+    link.crossOrigin = 'anonymous'
+    link.href = url
+    document.head.appendChild(link)
+}
+
 const VALID = new Set(THEMES.map(t => t.value))
 const FILE_BY_VALUE = Object.fromEntries(THEMES.map(t => [t.value, t.file]))
 
@@ -51,20 +86,16 @@ function ensureLink() {
     return link
 }
 
-/** Apply a theme — swap the CSS link + set data-theme on <html>. */
+/** Apply a theme — preload its blank, swap the CSS link, set data-theme. */
 export function applyTheme(value) {
     if (!VALID.has(value)) {
         console.warn(`[handfish-theme] unknown theme: ${value}`)
         return false
     }
+    preloadThemeBlank(value)
     const file = FILE_BY_VALUE[value]
     const link = ensureLink()
     const wanted = `${CDN_BASE}/${file}.css`
-    // setAttribute (not the .href property) so we get a literal href that
-    // doesn't depend on the browser's URL normalization; we then compare via
-    // getAttribute for the same reason. Some browsers normalize property
-    // .href to an absolute URL that doesn't equal the string we just set,
-    // which would skip the update.
     const current = link.getAttribute('href')
     if (current !== wanted) link.setAttribute('href', wanted)
     document.documentElement.setAttribute('data-theme', value)

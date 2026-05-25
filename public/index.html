@@ -22,44 +22,54 @@
     <link rel="preconnect" href="https://handfish.noisefactor.io" crossorigin>
     <link rel="preconnect" href="https://fonts.noisefactor.io" crossorigin>
 
-    <!-- Handfish zero-CLS font loading — preloaded + declared inline in
-         <head> so the font stack is established before any external CSS
-         loads. tokens.css also declares these, but tokens.css doesn't
-         resolve until after first paint — without inline declarations
-         the browser falls back to system serif for the first frame.
-         Mirrors handfish/index.html. -->
+    <!-- Always-needed blank placeholders; the active theme's blank is
+         preloaded by the inline script below based on the saved theme. -->
     <link rel="preload" href="https://fonts.noisefactor.io/fonts/nunito/Nunito-Blank.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="https://fonts.noisefactor.io/fonts/noto-sans-mono/NotoSansMono-Blank.woff2" as="font" type="font/woff2" crossorigin>
+
     <style>
-        @font-face {
-            font-family: 'Nunito Blank';
-            src: url('https://fonts.noisefactor.io/fonts/nunito/Nunito-Blank.woff2') format('woff2');
-            font-weight: 100 900;
-            font-style: normal;
-            font-display: block;
-        }
-        @font-face {
-            font-family: Nunito;
-            src: url('https://fonts.noisefactor.io/fonts/nunito/Nunito[wght].woff2') format('woff2');
-            font-weight: 100 900;
-            font-style: normal;
-            font-display: swap;
-        }
-        @font-face {
-            font-family: 'Noto Sans Mono Blank';
-            src: url('https://fonts.noisefactor.io/fonts/noto-sans-mono/NotoSansMono-Blank.woff2') format('woff2');
-            font-weight: 100 900;
-            font-style: normal;
-            font-display: block;
-        }
-        @font-face {
-            font-family: 'Noto Sans Mono';
-            src: url('https://fonts.noisefactor.io/fonts/noto-sans-mono/NotoSansMono[wdth,wght].woff2') format('woff2');
-            font-weight: 100 900;
-            font-style: normal;
-            font-display: swap;
-        }
+        /* Blank placeholders for every theme's font (declarations are
+           cheap — no download until a theme actually requests the font). */
+        @font-face { font-family: 'Nunito Blank';                src: url('https://fonts.noisefactor.io/fonts/nunito/Nunito-Blank.woff2') format('woff2');                                          font-weight: 100 900; font-display: block; }
+        @font-face { font-family: 'Noto Sans Mono Blank';        src: url('https://fonts.noisefactor.io/fonts/noto-sans-mono/NotoSansMono-Blank.woff2') format('woff2');                            font-weight: 100 900; font-display: block; }
+        @font-face { font-family: 'Inter Blank';                 src: url('https://fonts.noisefactor.io/fonts/inter/Inter-Blank.woff2') format('woff2');                                            font-weight: 100 900; font-display: block; }
+        @font-face { font-family: 'Cabin Blank';                 src: url('https://fonts.noisefactor.io/fonts/cabin/Cabin-Blank.woff2') format('woff2');                                            font-weight: 100 900; font-display: block; }
+        @font-face { font-family: 'Crimson Pro Blank';           src: url('https://fonts.noisefactor.io/fonts/crimson-pro/CrimsonPro-Blank.woff2') format('woff2');                                  font-weight: 100 900; font-display: block; }
+        @font-face { font-family: 'Roboto Slab Blank';           src: url('https://fonts.noisefactor.io/fonts/roboto-slab/RobotoSlab-Blank.woff2') format('woff2');                                  font-weight: 100 900; font-display: block; }
+        @font-face { font-family: 'Baloo 2 Blank';               src: url('https://fonts.noisefactor.io/fonts/baloo-2/Baloo2-Blank.woff2') format('woff2');                                          font-weight: 100 900; font-display: block; }
+        @font-face { font-family: 'Atkinson Hyperlegible Blank'; src: url('https://fonts.noisefactor.io/fonts/atkinson-hyperlegible/AtkinsonHyperlegible-Blank.woff2') format('woff2');              font-weight: 100 900; font-display: block; }
+        @font-face { font-family: 'Lora Blank';                  src: url('https://fonts.noisefactor.io/fonts/lora/Lora-Blank.woff2') format('woff2');                                              font-weight: 100 900; font-display: block; }
+        @font-face { font-family: 'Poppins Blank';               src: url('https://fonts.noisefactor.io/fonts/poppins/Poppins-Blank.woff2') format('woff2');                                        font-weight: 100 900; font-display: block; }
+        @font-face { font-family: 'Quicksand Blank';             src: url('https://fonts.noisefactor.io/fonts/quicksand/Quicksand-Blank.woff2') format('woff2');                                    font-weight: 100 900; font-display: block; }
+        @font-face { font-family: 'Tomorrow Blank';              src: url('https://fonts.noisefactor.io/fonts/tomorrow/Tomorrow-Blank.woff2') format('woff2');                                      font-weight: 100 900; font-display: block; }
+        @font-face { font-family: 'Comfortaa Blank';             src: url('https://fonts.noisefactor.io/fonts/comfortaa/Comfortaa-Blank.woff2') format('woff2');                                    font-weight: 100 900; font-display: block; }
+
+        /* Real fonts: font-display: swap. Only the base ones are declared
+           here; theme-specific real fonts are loaded by the active theme
+           CSS at the moment that theme applies. */
+        @font-face { font-family: Nunito;            src: url('https://fonts.noisefactor.io/fonts/nunito/Nunito[wght].woff2') format('woff2');                                font-weight: 100 900; font-display: swap; }
+        @font-face { font-family: 'Noto Sans Mono';  src: url('https://fonts.noisefactor.io/fonts/noto-sans-mono/NotoSansMono[wdth,wght].woff2') format('woff2');             font-weight: 100 900; font-display: swap; }
+
         html { font-family: Nunito, 'Nunito Blank'; }
+        :root {
+            --hf-font-family: Nunito, 'Nunito Blank';
+            --hf-font-family-mono: 'Noto Sans Mono', 'Noto Sans Mono Blank';
+        }
+
+        /* Handfish stock theme CSS lists --hf-font-family without a Blank
+           fallback for several themes. Patch each so every theme's chain
+           ends in a matching Blank metric placeholder. */
+        [data-theme="dusk"]                { --hf-font-family: 'Cabin', 'Cabin Blank'; }
+        [data-theme="gothic"]              { --hf-font-family: 'Crimson Pro', 'Crimson Pro Blank'; }
+        [data-theme="earthy"]              { --hf-font-family: 'Roboto Slab', 'Roboto Slab Blank'; }
+        [data-theme="kawaii"]              { --hf-font-family: 'Baloo 2', 'Baloo 2 Blank'; }
+        [data-theme="high-contrast-dark"],
+        [data-theme="high-contrast-light"] { --hf-font-family: 'Atkinson Hyperlegible', 'Atkinson Hyperlegible Blank'; }
+        [data-theme="newspaper"]           { --hf-font-family: 'Lora', 'Lora Blank'; }
+        [data-theme="ocean"]               { --hf-font-family: 'Poppins', 'Poppins Blank'; }
+        [data-theme="sunset"]              { --hf-font-family: 'Quicksand', 'Quicksand Blank'; }
+        [data-theme="synthwave"]           { --hf-font-family: 'Tomorrow', 'Tomorrow Blank'; }
+        [data-theme="rave"]                { --hf-font-family: 'Comfortaa', 'Comfortaa Blank'; }
     </style>
 
     <script type="importmap">
@@ -69,12 +79,10 @@
     <link rel="stylesheet" href="https://handfish.noisefactor.io/0/styles/tokens.css">
     <link rel="stylesheet" href="https://handfish.noisefactor.io/0/styles/dialogs.css">
 
-    <!-- Apply the saved handfish theme synchronously to avoid a flash from
-         the default dark palette to the user's chosen theme on every load.
-         The script appends the theme <link> AFTER tokens.css so it wins the
-         cascade (both selectors are specificity (0,1,0), later loses-then-
-         wins on source order). Keep this mapping in sync with
-         js/handfish-theme.js (THEMES). -->
+    <!-- Apply the saved theme synchronously and preload that theme's
+         Blank metric placeholder so the page never falls back to a system
+         font during the gap between theme CSS load and the real font's
+         swap-in. Keep these maps in sync with js/handfish-theme.js. -->
     <script>
     (function () {
         var FILES = {
@@ -88,10 +96,40 @@
             'cyberpunk': 'cyberpunk', 'synthwave': 'synthwave',
             'rave': 'rave', 'kawaii': 'kawaii'
         }
+        var THEME_BLANK = {
+            'neutral-dark': null, 'neutral-light': null,
+            'gray-dark': null, 'gray-light': null,
+            'brutalist': null, 'cyberpunk': null, 'terminal': null,
+            'corporate':           'https://fonts.noisefactor.io/fonts/inter/Inter-Blank.woff2',
+            'high-contrast-dark':  'https://fonts.noisefactor.io/fonts/atkinson-hyperlegible/AtkinsonHyperlegible-Blank.woff2',
+            'high-contrast-light': 'https://fonts.noisefactor.io/fonts/atkinson-hyperlegible/AtkinsonHyperlegible-Blank.woff2',
+            'newspaper':           'https://fonts.noisefactor.io/fonts/lora/Lora-Blank.woff2',
+            'gothic':              'https://fonts.noisefactor.io/fonts/crimson-pro/CrimsonPro-Blank.woff2',
+            'ocean':               'https://fonts.noisefactor.io/fonts/poppins/Poppins-Blank.woff2',
+            'dusk':                'https://fonts.noisefactor.io/fonts/cabin/Cabin-Blank.woff2',
+            'sunset':              'https://fonts.noisefactor.io/fonts/quicksand/Quicksand-Blank.woff2',
+            'earthy':              'https://fonts.noisefactor.io/fonts/roboto-slab/RobotoSlab-Blank.woff2',
+            'organic':             null,
+            'synthwave':           'https://fonts.noisefactor.io/fonts/tomorrow/Tomorrow-Blank.woff2',
+            'rave':                'https://fonts.noisefactor.io/fonts/comfortaa/Comfortaa-Blank.woff2',
+            'kawaii':              'https://fonts.noisefactor.io/fonts/baloo-2/Baloo2-Blank.woff2'
+        }
         var stored = null
         try { stored = localStorage.getItem('glitcher.theme.v1') } catch (e) {}
         var theme = (stored && FILES[stored]) ? stored : 'synthwave'
         document.documentElement.setAttribute('data-theme', theme)
+
+        var blankUrl = THEME_BLANK[theme]
+        if (blankUrl) {
+            var pre = document.createElement('link')
+            pre.rel = 'preload'
+            pre.as = 'font'
+            pre.type = 'font/woff2'
+            pre.crossOrigin = 'anonymous'
+            pre.href = blankUrl
+            document.head.appendChild(pre)
+        }
+
         var link = document.createElement('link')
         link.id = 'hf-theme-link'
         link.rel = 'stylesheet'
