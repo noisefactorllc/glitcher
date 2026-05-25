@@ -111,6 +111,24 @@ test.describe('Glitcher smoke', () => {
         expect(dl.suggestedFilename()).toMatch(/glitcher-\d+\.png/)
     })
 
+    test('rapid preset clicks coalesce to the last requested', async ({ page }) => {
+        await page.goto('/')
+        await page.waitForTimeout(3000)
+
+        // Click three presets in rapid succession before any compile can finish
+        await page.locator('.preset-chip', { hasText: 'Datamosh' }).click()
+        await page.waitForTimeout(40)
+        await page.locator('.preset-chip', { hasText: 'CRT' }).click()
+        await page.waitForTimeout(40)
+        await page.locator('.preset-chip', { hasText: 'Static' }).click()
+
+        // Wait for the coalesced work to fully settle
+        await page.waitForTimeout(4000)
+
+        // The LAST click should be the final state, not the first
+        await expect(page.locator('#effect-readout')).toContainText('Static')
+    })
+
     test('camera flag toggles back on after viewing an uploaded image', async ({ page }) => {
         await page.goto('/')
         await page.waitForTimeout(3000)

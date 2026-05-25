@@ -22,7 +22,15 @@ class GlitcherApp {
         this._intensity = 60
         this._mode = 'photo' // 'photo' | 'video'
 
+        // Renderer lock — only one compile or source swap at a time.
         this._busy = false
+        // Coalescing queue for preset requests that arrive while busy.
+        // Whoever currently holds _busy drains this before releasing.
+        this._pendingPresetIdx = null
+        this._pendingPulse = false
+        // Cached camera enumeration
+        this._cameraCount = null
+
         this._recording = null
         this._timerInterval = null
         this._swipe = null
@@ -112,21 +120,43 @@ class GlitcherApp {
         }
     }
 
+    /**
+     * Apply a preset. Rapid clicks coalesce — if the user clicks several
+     * chips while a compile is in flight, only the latest request is acted
+     * on once the in-flight work resolves. Keeps the user landed on the
+     * chip they last tapped, not the first.
+     */
     async _applyPreset(idx, pulse = true) {
-        if (this._busy) return
+        this._pendingPresetIdx = idx
+        if (pulse) this._pendingPulse = true
+        if (this._busy) return  // current owner of _busy will drain on release
         this._busy = true
         try {
-            const preset = PRESETS[idx]
-            if (!preset) return
-            this._currentPresetIdx = idx
-            this._setActiveChip(idx)
-            this._setEffectReadout(preset.name)
-            await this._compileCurrent()
-            if (pulse) this._glitchPulse()
-        } catch (err) {
-            console.error('[Glitcher] Preset compile failed:', err)
+            await this._drainPresetQueue()
         } finally {
             this._busy = false
+        }
+    }
+
+    /** Apply every pending preset request in turn. Caller must hold _busy. */
+    async _drainPresetQueue() {
+        while (this._pendingPresetIdx !== null) {
+            const target = this._pendingPresetIdx
+            const shouldPulse = this._pendingPulse
+            this._pendingPresetIdx = null
+            this._pendingPulse = false
+
+            const preset = PRESETS[target]
+            if (!preset) continue
+            this._currentPresetIdx = target
+            this._setActiveChip(target)
+            this._setEffectReadout(preset.name)
+            try {
+                await this._compileCurrent()
+                if (shouldPulse) this._glitchPulse()
+            } catch (err) {
+                console.error('[Glitcher] Preset compile failed:', err)
+            }
         }
     }
 
@@ -161,7 +191,6 @@ class GlitcherApp {
     // ============================================================
 
     async _glitchify() {
-        if (this._busy) return
         // Pick a different preset if possible
         let next = this._currentPresetIdx
         if (PRESETS.length > 1) {
@@ -213,6 +242,7 @@ class GlitcherApp {
             document.getElementById('upload-btn').classList.add('active')
             document.getElementById('error-banner').classList.add('hidden')
             await this._compileCurrent()
+            await this._drainPresetQueue()
         } catch (err) {
             console.error('[Glitcher] Image load failed:', err)
         } finally {
@@ -241,6 +271,7 @@ class GlitcherApp {
             document.getElementById('error-banner').classList.add('hidden')
             await this._checkMultipleCameras()
             await this._compileCurrent()
+            await this._drainPresetQueue()
         } catch (err) {
             console.error('[Glitcher] Camera start failed:', err)
             document.getElementById('error-banner').classList.remove('hidden')
@@ -263,9 +294,12 @@ class GlitcherApp {
     }
 
     async _checkMultipleCameras() {
-        const devices = await MediaSource.listCameras()
+        if (this._cameraCount === null) {
+            const devices = await MediaSource.listCameras()
+            this._cameraCount = devices.length
+        }
         const btn = document.getElementById('camera-flip-btn')
-        btn.classList.toggle('hidden', devices.length < 2)
+        btn.classList.toggle('hidden', this._cameraCount < 2)
     }
 
     // ============================================================
