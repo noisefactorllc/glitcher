@@ -1,0 +1,26 @@
+{
+    "name": "glitcher",
+    "version": "0.1.0-SNAPSHOT",
+    "description": "State-of-the-art glitch art tool powered by Noisemaker",
+    "type": "module",
+    "author": "Noise Factor LLC",
+    "homepage": "https://github.com/noisefactorllc/glitcher",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/noisefactorllc/glitcher.git"
+    },
+    "bugs": {
+        "url": "https://github.com/noisefactorllc/glitcher/issues"
+    },
+    "scripts": {
+        "dev": "npx http-server public -p 3007 -c-1",
+        "test": "npx playwright test"
+    },
+    "devDependencies": {
+        "@playwright/test": "^1.58.2"
+    },
+    "engines": {
+        "node": ">=18.0.0"
+    },
+    "license": "MIT"
+}

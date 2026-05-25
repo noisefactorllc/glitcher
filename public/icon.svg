@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="80" fill="#080010"/>
+  <g font-family="ui-monospace, 'JetBrains Mono', 'Courier New', monospace" font-weight="900" font-size="220" text-anchor="middle">
+    <text x="252" y="200" fill="#ff0090">GL</text>
+    <text x="260" y="200" fill="#00f5ff" opacity="0.85">GL</text>
+    <text x="256" y="200" fill="#fff5ff">GL</text>
+    <text x="248" y="400" fill="#00f5ff">CH</text>
+    <text x="260" y="400" fill="#ff0090" opacity="0.85">CH</text>
+    <text x="256" y="400" fill="#fff5ff">CH</text>
+  </g>
+  <rect x="0" y="160" width="512" height="6" fill="#fff" opacity="0.35"/>
+  <rect x="0" y="232" width="512" height="3" fill="#fff" opacity="0.18"/>
+  <rect x="0" y="318" width="512" height="4" fill="#fff" opacity="0.22"/>
+  <rect x="0" y="440" width="512" height="6" fill="#fff" opacity="0.3"/>
+</svg>

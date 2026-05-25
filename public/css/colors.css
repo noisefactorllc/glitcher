@@ -1,0 +1,30 @@
+:root {
+    --bg: #080010;
+    --bg-2: #11001f;
+    --bg-elevated: #190a2b;
+    --border: rgba(255, 0, 144, 0.18);
+    --border-hover: rgba(0, 245, 255, 0.5);
+    --text: #f5f0ff;
+    --text-dim: #8a7aa3;
+    --accent-magenta: #ff0090;
+    --accent-cyan: #00f5ff;
+    --accent-yellow: #fff100;
+    --accent-photo: #ffffff;
+    --accent-video: #ff0090;
+    --glass: rgba(20, 8, 40, 0.78);
+    --shadow-pink: 0 0 24px rgba(255, 0, 144, 0.35);
+    --shadow-cyan: 0 0 24px rgba(0, 245, 255, 0.3);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    background: var(--bg);
+    background-image:
+        radial-gradient(ellipse at 20% 0%, rgba(255, 0, 144, 0.18), transparent 50%),
+        radial-gradient(ellipse at 80% 100%, rgba(0, 245, 255, 0.18), transparent 50%);
+    color: var(--text);
+    font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+    overflow: hidden;
+    height: 100dvh;
+}

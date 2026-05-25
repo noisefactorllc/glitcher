@@ -1,0 +1,490 @@
+/* ============================================================
+   Buttons (icon + chip + shutter)
+   ============================================================ */
+
+.icon-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: all 0.15s;
+    flex-shrink: 0;
+}
+
+.icon-btn:hover {
+    border-color: var(--accent-cyan);
+    color: var(--text);
+    box-shadow: var(--shadow-cyan);
+}
+
+.icon-btn.active {
+    background: rgba(255, 0, 144, 0.18);
+    border-color: var(--accent-magenta);
+    color: var(--text);
+}
+
+/* ============================================================
+   Mode toggle (Photo / Video)
+   ============================================================ */
+
+.mode-toggle {
+    display: flex;
+    border-radius: 18px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+}
+
+.mode-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    padding: 6px 14px;
+    font-family: inherit;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.mode-btn.active {
+    background: var(--bg-elevated);
+    color: var(--text);
+    text-shadow: var(--shadow-pink);
+}
+
+/* ============================================================
+   Shutter button
+   ============================================================ */
+
+.shutter-btn {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    border: 3px solid var(--accent-photo);
+    background: transparent;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.15s;
+    flex-shrink: 0;
+}
+
+.shutter-btn::after {
+    content: '';
+    position: absolute;
+    inset: 4px;
+    border-radius: 50%;
+    background: var(--accent-photo);
+    transition: all 0.15s;
+}
+
+.shutter-btn:hover {
+    box-shadow: 0 0 28px rgba(255, 255, 255, 0.4);
+}
+
+.shutter-btn.video-mode {
+    border-color: var(--accent-video);
+}
+
+.shutter-btn.video-mode::after {
+    background: var(--accent-video);
+}
+
+.shutter-btn.video-mode:hover {
+    box-shadow: 0 0 28px rgba(255, 0, 144, 0.6);
+}
+
+.shutter-btn.recording::after {
+    border-radius: 6px;
+    inset: 18px;
+}
+
+/* ============================================================
+   GLITCHIFY button
+   ============================================================ */
+
+.glitchify-btn {
+    position: relative;
+    background: transparent;
+    color: var(--text);
+    font-family: inherit;
+    font-weight: 900;
+    letter-spacing: 0.22em;
+    font-size: 13px;
+    padding: 0 18px;
+    height: 44px;
+    border: 1px solid var(--accent-magenta);
+    border-radius: 6px;
+    cursor: pointer;
+    overflow: hidden;
+    text-shadow:
+        1px 0 0 rgba(255, 0, 144, 0.7),
+        -1px 0 0 rgba(0, 245, 255, 0.7);
+    transition: transform 0.08s, box-shadow 0.15s;
+    flex-shrink: 0;
+}
+
+.glitchify-bg {
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(90deg,
+            rgba(255, 0, 144, 0.22) 0%,
+            rgba(0, 245, 255, 0.22) 50%,
+            rgba(255, 0, 144, 0.22) 100%);
+    background-size: 200% 100%;
+    animation: glitchify-bg-pan 5s linear infinite;
+    z-index: 0;
+}
+
+.glitchify-label {
+    position: relative;
+    z-index: 1;
+}
+
+.glitchify-btn:hover {
+    box-shadow:
+        0 0 18px rgba(255, 0, 144, 0.5),
+        0 0 36px rgba(0, 245, 255, 0.25);
+}
+
+.glitchify-btn:active,
+.glitchify-btn.pulse {
+    transform: translateY(1px);
+    animation: glitchify-shake 0.4s steps(8);
+}
+
+@keyframes glitchify-bg-pan {
+    0%   { background-position: 0% 0; }
+    100% { background-position: 200% 0; }
+}
+
+@keyframes glitchify-shake {
+    0%   { transform: translate(0, 1px); }
+    25%  { transform: translate(-2px, -1px); }
+    50%  { transform: translate(2px, 0); }
+    75%  { transform: translate(-1px, 2px); }
+    100% { transform: translate(0, 0); }
+}
+
+/* ============================================================
+   Intensity slider
+   ============================================================ */
+
+.intensity {
+    flex: 1;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0 14px;
+    min-width: 0;
+}
+
+.intensity-label {
+    color: var(--text-dim);
+    font-size: 10px;
+    letter-spacing: 0.22em;
+}
+
+.intensity-value {
+    color: var(--accent-cyan);
+    font-variant-numeric: tabular-nums;
+    font-size: 12px;
+    font-weight: 700;
+    width: 28px;
+    text-align: right;
+    text-shadow: 0 0 10px rgba(0, 245, 255, 0.6);
+}
+
+.intensity-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    width: 100%;
+    height: 36px;
+    cursor: pointer;
+}
+
+.intensity-slider::-webkit-slider-runnable-track {
+    height: 4px;
+    background: linear-gradient(90deg, var(--accent-magenta) 0%, var(--accent-cyan) 100%);
+    border-radius: 2px;
+}
+
+.intensity-slider::-moz-range-track {
+    height: 4px;
+    background: linear-gradient(90deg, var(--accent-magenta) 0%, var(--accent-cyan) 100%);
+    border-radius: 2px;
+}
+
+.intensity-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    background: var(--text);
+    border-radius: 50%;
+    border: 2px solid var(--bg);
+    margin-top: -6px;
+    cursor: pointer;
+    box-shadow: 0 0 12px rgba(255, 255, 255, 0.7);
+}
+
+.intensity-slider::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    background: var(--text);
+    border-radius: 50%;
+    border: 2px solid var(--bg);
+    cursor: pointer;
+    box-shadow: 0 0 12px rgba(255, 255, 255, 0.7);
+}
+
+/* ============================================================
+   Preset chips
+   ============================================================ */
+
+.preset-chip {
+    flex-shrink: 0;
+    scroll-snap-align: start;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-family: inherit;
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-transform: uppercase;
+    white-space: nowrap;
+    position: relative;
+}
+
+.preset-chip:hover {
+    color: var(--text);
+    border-color: var(--accent-cyan);
+}
+
+.preset-chip.active {
+    color: var(--text);
+    border-color: var(--accent-magenta);
+    background: rgba(255, 0, 144, 0.12);
+    text-shadow: var(--shadow-pink);
+}
+
+.preset-chip.active::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: 6px;
+    pointer-events: none;
+    box-shadow: 0 0 14px rgba(255, 0, 144, 0.45);
+}
+
+/* ============================================================
+   Recording indicator
+   ============================================================ */
+
+.recording-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--accent-magenta);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+}
+
+.recording-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent-magenta);
+    animation: blink 1s infinite;
+    box-shadow: 0 0 10px var(--accent-magenta);
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.3; }
+}
+
+/* ============================================================
+   Error banner
+   ============================================================ */
+
+.error-banner {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 24px;
+    background: rgba(8, 0, 16, 0.85);
+    z-index: 5;
+}
+
+.error-title {
+    font-size: 16px;
+    margin-bottom: 8px;
+    color: var(--text);
+    text-shadow: var(--shadow-pink);
+}
+
+.error-body {
+    font-size: 13px;
+    color: var(--text-dim);
+    max-width: 360px;
+}
+
+/* ============================================================
+   Filmstrip
+   ============================================================ */
+
+.filmstrip-thumbs {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    max-width: 240px;
+}
+
+.filmstrip-thumbs::-webkit-scrollbar { display: none; }
+
+.filmstrip-item {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.filmstrip-thumb {
+    width: 44px;
+    height: 44px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    object-fit: cover;
+    display: block;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.filmstrip-item:hover .filmstrip-thumb {
+    border-color: var(--accent-cyan);
+    box-shadow: var(--shadow-cyan);
+}
+
+.filmstrip-delete {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: none;
+    background: var(--bg-elevated);
+    color: var(--text);
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.filmstrip-item:hover .filmstrip-delete {
+    display: flex;
+}
+
+@media (hover: none) {
+    .filmstrip-delete { display: flex; }
+}
+
+/* ============================================================
+   Flash / pulse overlays
+   ============================================================ */
+
+.flash-overlay {
+    position: fixed;
+    inset: 0;
+    background: white;
+    z-index: 101;
+    pointer-events: none;
+    animation: flash 0.3s ease-out forwards;
+}
+
+@keyframes flash {
+    0%   { opacity: 0.8; }
+    100% { opacity: 0; }
+}
+
+.glitch-pulse-overlay {
+    position: fixed;
+    inset: 0;
+    background:
+        linear-gradient(180deg,
+            transparent 0%,
+            rgba(255, 0, 144, 0.4) 25%,
+            transparent 35%,
+            rgba(0, 245, 255, 0.4) 65%,
+            transparent 75%);
+    background-size: 100% 200%;
+    z-index: 101;
+    pointer-events: none;
+    mix-blend-mode: screen;
+    animation: glitch-pulse 0.35s ease-out forwards;
+}
+
+@keyframes glitch-pulse {
+    0%   { opacity: 1; background-position: 0% 0%; }
+    100% { opacity: 0; background-position: 0% 100%; }
+}
+
+/* ============================================================
+   Utility
+   ============================================================ */
+
+.hidden { display: none !important; }
+
+button, .preset-chip {
+    touch-action: manipulation;
+}
+
+/* About dialog styling delegated to handfish */
+dialog {
+    background: var(--glass);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--accent-magenta);
+    border-radius: 16px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 40px rgba(255, 0, 144, 0.2);
+    color: var(--text);
+    padding: 0;
+    margin: auto;
+    position: fixed;
+    inset: 0;
+    max-width: 90vw;
+    max-height: 85vh;
+    overflow: hidden;
+    outline: none;
+}
+
+dialog:focus { outline: none; }
+
+dialog::backdrop {
+    background: rgba(8, 0, 16, 0.7);
+    backdrop-filter: blur(4px);
+}
