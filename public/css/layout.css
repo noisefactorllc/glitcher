@@ -9,6 +9,11 @@
     overflow: hidden;
 }
 
+/* Portrait/mobile: #control-panel is transparent to layout — its children
+   become direct grid items of #app, matching the original single-column
+   row order (glitchify → stack → starter → bottom-bar). */
+#control-panel { display: contents; }
+
 #title-bar {
     display: flex;
     align-items: center;
@@ -192,6 +197,45 @@
     justify-content: flex-end;
     gap: var(--hf-space-2);
     overflow: hidden;
+}
+
+/* ============================================================
+   Landscape / desktop layout — controls left, canvas right.
+   Matches the noisedeck split. Mobile stays in the stacked
+   layout above. Same 901px breakpoint as noisedeck.
+   ============================================================ */
+@media (min-width: 901px) {
+    #app {
+        grid-template-columns: 500px minmax(0, 1fr);
+        grid-template-rows: auto minmax(0, 1fr);
+        grid-template-areas:
+            "title title"
+            "panel stage";
+    }
+    #title-bar     { grid-area: title; }
+    #stage         { grid-area: stage; }
+    #control-panel {
+        grid-area: panel;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        overflow: hidden;
+        border-right: var(--hf-border-width) solid var(--hf-border-subtle);
+    }
+    /* Glitchify row sits at the top of the panel — no border-top since
+       the title bar already has its own bottom border. */
+    #control-panel #glitchify-row { border-top: none; }
+
+    /* Stack section flexes to fill the available height between the
+       fixed-size rows above and below it, scrolling internally. The
+       portrait pin-to-vh is unnecessary in landscape — the canvas no
+       longer reflows when slot count changes. */
+    #control-panel #stack-section {
+        flex: 1 1 0;
+        height: auto;
+        min-height: 0;
+        max-height: none;
+    }
 }
 
 @media (max-width: 600px) {
