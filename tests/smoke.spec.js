@@ -41,7 +41,7 @@ test.describe('Glitcher smoke', () => {
         const downloadPromise = page.waitForEvent('download', { timeout: 8000 })
         await page.click('#shutter-btn')
         const dl = await downloadPromise
-        expect(dl.suggestedFilename()).toMatch(/glitcher-\d+\.png/)
+        expect(dl.suggestedFilename()).toMatch(/glitchin-out-\d+\.png/)
 
         // Filmstrip thumbnail appears
         await expect(page.locator('.filmstrip-thumb').first()).toBeVisible()
@@ -126,6 +126,47 @@ test.describe('Glitcher smoke', () => {
         await expect(page.locator('.stack-slot .slot-dice.rolling').first()).toBeVisible()
     })
 
+    test('RE-ROLL ALL button rolls every slot', async ({ page }) => {
+        await page.goto('/')
+        await page.waitForTimeout(3000)
+
+        // Default Datamosh starter populates the stack on boot.
+        await page.click('#reroll-all-btn')
+        await expect(page.locator('.stack-slot .slot-dice.rolling').first()).toBeVisible()
+    })
+
+    test('datamosh randomize rolls only intensity + 2-3 flavor knobs', async ({ page }) => {
+        await page.goto('/')
+        await page.waitForTimeout(2000)
+
+        const result = await page.evaluate(async () => {
+            const { EFFECTS } = await import('/js/effects.js')
+            const { EffectStack } = await import('/js/stack.js')
+            const counts = []
+            const restoredCounts = []
+            for (let i = 0; i < 200; i++) {
+                counts.push(Object.keys(EFFECTS.corrupt.randomize()).length)
+            }
+            // makeSlot called with a saved rolled (restore path) must NOT merge
+            // in extra random keys from a fresh randomize.
+            for (let i = 0; i < 50; i++) {
+                const rolled = EFFECTS.corrupt.randomize()
+                const slot = EffectStack.makeSlot('corrupt', 50, rolled)
+                restoredCounts.push(Object.keys(slot.rolled).length)
+            }
+            return { counts, restoredCounts }
+        })
+
+        // intensity always rolled + 2-3 flavor knobs = 3 or 4 keys total
+        expect(Math.min(...result.counts)).toBeGreaterThanOrEqual(3)
+        expect(Math.max(...result.counts)).toBeLessThanOrEqual(4)
+        // sanity: both 3 and 4 should appear across 200 rolls
+        expect(result.counts).toContain(3)
+        expect(result.counts).toContain(4)
+        // Restore path preserves the sparse shape (no key inflation)
+        expect(Math.max(...result.restoredCounts)).toBeLessThanOrEqual(4)
+    })
+
     test('no horizontal page scroll after starter cycle', async ({ page }) => {
         await page.goto('/')
         await page.waitForTimeout(3000)
@@ -168,7 +209,7 @@ test.describe('Glitcher smoke', () => {
         const downloadPromise = page.waitForEvent('download', { timeout: 8000 })
         await page.click('#shutter-btn')
         const dl = await downloadPromise
-        expect(dl.suggestedFilename()).toMatch(/glitcher-\d+\.png/)
+        expect(dl.suggestedFilename()).toMatch(/glitchin-out-\d+\.png/)
     })
 
     test('camera flag toggles back on after viewing an uploaded image', async ({ page }) => {

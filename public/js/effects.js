@@ -27,6 +27,14 @@
 const randInt = (min, max) => Math.floor(min + Math.random() * (max - min + 1))
 const randFloat = (min, max) => min + Math.random() * (max - min)
 const randPick = arr => arr[Math.floor(Math.random() * arr.length)]
+const randPickN = (arr, n) => {
+    const pool = arr.slice()
+    const out = []
+    while (out.length < n && pool.length) {
+        out.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0])
+    }
+    return out
+}
 
 /**
  * Spec helpers for paramSpecs. We deliberately tighten max values below
@@ -46,17 +54,25 @@ export const EFFECTS = {
             intensity: 6, bandHeight: 6, sort: 0, shift: 0,
             channelShift: 0, melt: 0, scatter: 0, bits: 0, speed: 1
         },
-        randomize: () => ({
-            intensity: randInt(40, 100),
-            bandHeight: randInt(4, 28),
-            sort: randInt(0, 90),
-            shift: randInt(0, 90),
-            channelShift: randInt(0, 95),
-            melt: randInt(0, 60),
-            scatter: randInt(0, 50),
-            bits: randInt(0, 30),
-            speed: randInt(1, 4)
-        }),
+        // Always roll `intensity` (master); pick 2-3 flavor knobs to roll, leave
+        // the rest at default. lerpParams falls back to defaults for omitted keys.
+        randomize: () => {
+            const rollers = {
+                bandHeight: () => randInt(4, 28),
+                sort: () => randInt(0, 90),
+                shift: () => randInt(0, 90),
+                channelShift: () => randInt(0, 95),
+                melt: () => randInt(0, 60),
+                scatter: () => randInt(0, 50),
+                bits: () => randInt(0, 30),
+                speed: () => randInt(1, 4)
+            }
+            const out = { intensity: randInt(40, 100) }
+            for (const k of randPickN(Object.keys(rollers), randInt(2, 3))) {
+                out[k] = rollers[k]()
+            }
+            return out
+        },
         paramSpecs: {
             intensity: F(0, 100), bandHeight: F(1, 100), sort: F(0, 100),
             shift: F(0, 100), channelShift: F(0, 100), melt: F(0, 100),

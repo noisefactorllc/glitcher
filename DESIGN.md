@@ -1,10 +1,10 @@
-# Glitcher — Design
+# glitchin' out — Design
 
 Glitch-art tool. Build a stack of glitch effects, dial each one, re-roll any of them, or hit GLITCHIFY for chaos.
 
 ## Concept
 
-Glitcher is **layered destruction**. The user picks effects one at a time and stacks them. Each slot has a slider that lerps between the effect's neutral defaults and a randomized snapshot of its parameters; a dice button rerolls just that effect's snapshot. The stack is the API — presets are just one-tap stack populators.
+glitchin' out is **layered destruction**. The user picks effects one at a time and stacks them. Each slot has a slider that lerps between the effect's neutral defaults and a randomized snapshot of its parameters; a dice button rerolls just that effect's snapshot. The stack is the API — presets are just one-tap stack populators.
 
 Aims for the response *"yeah"* from a glitch-art person, not *"looks like an Instagram filter."*
 

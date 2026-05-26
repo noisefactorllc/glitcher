@@ -8,7 +8,7 @@
 
 import { saveCapture, deleteCapture, loadAllCaptures, getMaxId } from './db.js'
 
-const FILENAME_PREFIX = 'glitcher'
+const FILENAME_PREFIX = 'glitchin-out'
 
 export class Gallery {
     /**

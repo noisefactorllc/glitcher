@@ -47,9 +47,10 @@ export class EffectStack {
      */
     static makeSlot(effectId, intensity = 60, rolled = null) {
         const effect = getEffect(effectId)
-        const snapshot = rolled
-            ? { ...effect.randomize(), ...rolled }   // fill gaps then override
-            : effect.randomize()
+        // Use saved `rolled` as-is when restoring; lerpParams handles missing keys
+        // by falling back to defaults. (Don't merge with a fresh randomize — that
+        // would add extra random keys to effects whose randomize() is sparse.)
+        const snapshot = rolled ?? effect.randomize()
         return {
             uid: nextUid(),
             effectId,

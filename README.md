@@ -1,4 +1,4 @@
-# Glitcher
+# glitchin' out
 
 Glitch-art tool powered by the [Noisemaker](https://noisemaker.app/) shader engine.
 

@@ -8,11 +8,11 @@ import { AboutDialog } from 'handfish'
 const APP_VERSION = '0.1.0-SNAPSHOT'
 
 const about = new AboutDialog({
-    name: 'Glitcher',
+    name: "glitchin' out",
     version: APP_VERSION,
-    logo: '<img src="icon.svg" alt="Glitcher" draggable="false">',
+    logo: `<img src="icon.svg" alt="glitchin' out" draggable="false">`,
     repo: 'noisefactorllc/glitcher',
-    ecosystem: 'Glitcher is a free tool by <a href="https://noisefactor.io/" target="_blank" rel="noopener">Noise Factor</a>, powered by the <a href="https://noisemaker.app/" target="_blank" rel="noopener">Noisemaker</a> open source engine. See also <a href="https://photobox.noisefactor.io/" target="_blank" rel="noopener">Photobox</a> for un-glitched real-time camera effects.',
+    ecosystem: `glitchin' out is a free tool by <a href="https://noisefactor.io/" target="_blank" rel="noopener">Noise Factor</a>, powered by the <a href="https://noisemaker.app/" target="_blank" rel="noopener">Noisemaker</a> open source engine. See also <a href="https://photobox.noisefactor.io/" target="_blank" rel="noopener">Photobox</a> for un-glitched real-time camera effects.`,
 })
 
 fetch('./deployment-meta.json', { cache: 'no-store' }).then(async (res) => {

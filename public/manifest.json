@@ -1,6 +1,6 @@
 {
-    "name": "Glitcher",
-    "short_name": "Glitcher",
+    "name": "glitchin' out",
+    "short_name": "glitchin' out",
     "description": "State-of-the-art glitch art tool powered by Noisemaker",
     "start_url": "/",
     "display": "standalone",

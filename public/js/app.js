@@ -374,6 +374,7 @@ class GlitcherApp {
 
     _wireControls() {
         document.getElementById('glitchify-btn').addEventListener('click', () => this._glitchify())
+        document.getElementById('reroll-all-btn').addEventListener('click', () => this._rerollAll())
         document.getElementById('share-btn')?.addEventListener('click', () => this._share())
 
         document.getElementById('camera-btn').classList.add('active')
