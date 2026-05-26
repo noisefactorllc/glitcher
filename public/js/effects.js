@@ -2,11 +2,6 @@
 /**
  * Glitcher effect catalog.
  *
- * Glitch-only — no spatial distortions, warps, twirls, lens displacements.
- * The "lens" half of glitch art means color aberrations and light leaks,
- * not pinch / spiral / waves / zoom blur. If you want camera warps, build
- * them somewhere else.
- *
  * Each entry is a single Noisemaker filter the user can drop into the stack.
  * For each effect we declare:
  *
@@ -125,36 +120,74 @@ export const EFFECTS = {
         liveTunable: ['alpha', 'density']
     },
 
-    chromaticAberration: {
-        id: 'chromaticAberration',
-        displayName: 'Chrom. Aberration',
-        tagline: 'RGB fringing',
-        defaults: { aberration: 10, passthru: 80 },
+    lensDistortion: {
+        id: 'lensDistortion',
+        displayName: 'Lens',
+        tagline: 'Lens warp + RGB / prism aberration',
+        defaults: {
+            shape: 'circle', distortion: 0, mode: 'chromaticRgb',
+            aberration: 10, hueRotation: 0, hueRange: 0, saturation: 0,
+            passthru: 80, vignetteAmt: 0, speed: 0
+        },
         randomize: () => ({
+            shape: randPick(['circle', 'circle', 'circle', 'cosine', 'diamond', 'hexagon', 'octagon', 'square', 'triangle']),
+            distortion: randPick([0, 0, randFloat(-50, 50)]),
+            mode: randPick(['chromaticRgb', 'prismaticHsv']),
             aberration: randInt(40, 95),
-            passthru: randInt(30, 80)
-        }),
-        paramSpecs: { aberration: F(0, 100), passthru: F(0, 100) },
-        liveTunable: ['aberration', 'passthru']
-    },
-
-    prismaticAberration: {
-        id: 'prismaticAberration',
-        displayName: 'Prism',
-        tagline: 'Hue-rotating prism split',
-        defaults: { aberration: 10, hueRotation: 0, hueRange: 0, saturation: 0, passthru: 80 },
-        randomize: () => ({
-            aberration: randInt(45, 95),
-            hueRotation: randInt(-180, 180),
-            hueRange: randInt(30, 100),
-            saturation: randInt(-40, 80),
-            passthru: randInt(25, 70)
+            hueRotation: randFloat(0, 360),
+            hueRange: randInt(20, 90),
+            saturation: randInt(-30, 70),
+            passthru: randInt(30, 80),
+            vignetteAmt: randPick([0, 0, randFloat(-50, 30)]),
+            speed: randPick([0, 0, 0, randFloat(-30, 30)])
         }),
         paramSpecs: {
-            aberration: F(0, 100), hueRotation: F(-180, 180),
-            hueRange: F(0, 100), saturation: F(-100, 100), passthru: F(0, 100)
+            shape: C('circle', 'cosine', 'diamond', 'hexagon', 'octagon', 'square', 'triangle'),
+            distortion: F(-100, 100),
+            mode: C('chromaticRgb', 'prismaticHsv'),
+            aberration: F(0, 100),
+            hueRotation: F(0, 360),
+            hueRange: F(0, 100),
+            saturation: F(-100, 100),
+            passthru: F(0, 100),
+            vignetteAmt: F(-100, 100),
+            speed: F(-100, 100)
         },
-        liveTunable: ['aberration', 'hueRotation', 'hueRange', 'saturation', 'passthru']
+        liveTunable: ['shape', 'distortion', 'mode', 'aberration', 'hueRotation', 'hueRange', 'saturation', 'passthru', 'vignetteAmt', 'speed']
+    },
+
+    glitch: {
+        id: 'glitch',
+        displayName: 'Glitch',
+        tagline: 'Chonky pixel tears + scanlines + snow',
+        defaults: {
+            glitchiness: 0, aberration: 0, xChonk: 1, yChonk: 1,
+            seed: 1, scanlinesAmt: 0, snowAmt: 0,
+            vignetteAmt: 0, distortion: 0
+        },
+        randomize: () => ({
+            glitchiness: randInt(35, 85),
+            aberration: randPick([0, 0, randInt(20, 70)]),
+            xChonk: randInt(1, 20),
+            yChonk: randInt(1, 12),
+            seed: randInt(1, 100),
+            scanlinesAmt: randPick([0, 0, randInt(15, 60)]),
+            snowAmt: randPick([0, 0, randFloat(10, 50)]),
+            vignetteAmt: randPick([0, 0, randFloat(-40, 30)]),
+            distortion: randPick([0, 0, 0, randFloat(-30, 30)])
+        }),
+        paramSpecs: {
+            glitchiness: F(0, 100),
+            aberration: F(0, 100),
+            xChonk: I(1, 100),
+            yChonk: I(1, 100),
+            seed: I(1, 100),
+            scanlinesAmt: I(0, 100),
+            snowAmt: F(0, 100),
+            vignetteAmt: F(-100, 100),
+            distortion: F(-100, 100)
+        },
+        liveTunable: ['glitchiness', 'aberration', 'xChonk', 'yChonk', 'seed', 'scanlinesAmt', 'snowAmt', 'vignetteAmt', 'distortion']
     },
 
     crt: {
@@ -335,9 +368,9 @@ export const EFFECTS = {
 /** Stable display order for the add-effect picker and starters UI. */
 export const EFFECT_ORDER = [
     // signal corruption
-    'corrupt', 'pixelSort', 'scanlineError', 'snow',
-    // color / RGB aberration
-    'chromaticAberration', 'prismaticAberration', 'invert',
+    'glitch', 'corrupt', 'pixelSort', 'scanlineError', 'snow',
+    // lens / color
+    'lensDistortion', 'invert',
     // quantize / dither / glyph
     'posterize', 'dither', 'glyphMap',
     // CRT

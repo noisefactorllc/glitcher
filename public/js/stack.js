@@ -152,7 +152,7 @@ export class EffectStack {
      * Empty stack returns a pass-through that just renders the source.
      */
     buildDsl() {
-        const head = 'search synth, filter'
+        const head = 'search synth, filter, classicNoisedeck'
         if (this._slots.length === 0) {
             return [head, 'media().write(o0)', 'render(o0)'].join('\n\n')
         }

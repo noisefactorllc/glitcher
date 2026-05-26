@@ -17,7 +17,7 @@ export const STARTERS = [
         name: 'Datamosh',
         slots: [
             { effectId: 'corrupt',              intensity: 70 },
-            { effectId: 'chromaticAberration',  intensity: 55 }
+            { effectId: 'lensDistortion',  intensity: 55 }
         ]
     },
     {
@@ -25,7 +25,14 @@ export const STARTERS = [
         slots: [
             { effectId: 'corrupt',              intensity: 75 },
             { effectId: 'convolutionFeedback',  intensity: 70 },
-            { effectId: 'chromaticAberration',  intensity: 55 }
+            { effectId: 'lensDistortion',  intensity: 55 }
+        ]
+    },
+    {
+        name: 'Classic',
+        slots: [
+            { effectId: 'glitch',         intensity: 75 },
+            { effectId: 'lensDistortion', intensity: 40 }
         ]
     },
     {
@@ -40,7 +47,7 @@ export const STARTERS = [
         name: 'CRT',
         slots: [
             { effectId: 'crt',                 intensity: 75 },
-            { effectId: 'chromaticAberration', intensity: 50 },
+            { effectId: 'lensDistortion', intensity: 50 },
             { effectId: 'grain',               intensity: 35 }
         ]
     },
@@ -48,7 +55,7 @@ export const STARTERS = [
         name: 'Slice',
         slots: [
             { effectId: 'pixelSort',           intensity: 80 },
-            { effectId: 'chromaticAberration', intensity: 45 }
+            { effectId: 'lensDistortion', intensity: 45 }
         ]
     },
     {
@@ -63,14 +70,14 @@ export const STARTERS = [
         name: 'Phantom',
         slots: [
             { effectId: 'convolutionFeedback', intensity: 70 },
-            { effectId: 'chromaticAberration', intensity: 50 }
+            { effectId: 'lensDistortion', intensity: 50 }
         ]
     },
     {
         name: 'Edges',
         slots: [
             { effectId: 'edge',                intensity: 75 },
-            { effectId: 'chromaticAberration', intensity: 55 }
+            { effectId: 'lensDistortion', intensity: 55 }
         ]
     },
     {
@@ -78,14 +85,14 @@ export const STARTERS = [
         slots: [
             { effectId: 'invert',              intensity: 100 },
             { effectId: 'scanlineError',       intensity: 60 },
-            { effectId: 'chromaticAberration', intensity: 55 }
+            { effectId: 'lensDistortion', intensity: 55 }
         ]
     },
     {
         name: 'ASCII',
         slots: [
             { effectId: 'glyphMap',            intensity: 70 },
-            { effectId: 'chromaticAberration', intensity: 40 }
+            { effectId: 'lensDistortion', intensity: 40 }
         ]
     },
     {
@@ -115,7 +122,7 @@ export const STARTERS = [
         name: 'Neon',
         slots: [
             { effectId: 'glowingEdge',         intensity: 80 },
-            { effectId: 'chromaticAberration', intensity: 55 },
+            { effectId: 'lensDistortion', intensity: 55 },
             { effectId: 'grain',               intensity: 35 }
         ]
     }
