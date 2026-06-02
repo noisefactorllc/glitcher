@@ -362,6 +362,24 @@ export const EFFECTS = {
         }),
         paramSpecs: { alpha: F(0, 1), speed: F(0, 5) },
         liveTunable: ['alpha', 'speed']
+    },
+
+    temporalAberration: {
+        id: 'temporalAberration',
+        displayName: 'Time Shift',
+        tagline: 'Per-channel temporal frame delay — RGB time trails',
+        defaults: { redDelay: 0, greenDelay: 1, blueDelay: 2 },
+        randomize: () => ({
+            redDelay: randFloat(0, 3),
+            greenDelay: randFloat(2, 6),
+            blueDelay: randFloat(4, 8)
+        }),
+        paramSpecs: {
+            redDelay: F(0, 8),
+            greenDelay: F(0, 8),
+            blueDelay: F(0, 8)
+        },
+        liveTunable: ['redDelay', 'greenDelay', 'blueDelay']
     }
 }
 
@@ -370,7 +388,7 @@ export const EFFECT_ORDER = [
     // signal corruption
     'glitch', 'corrupt', 'pixelSort', 'scanlineError', 'snow',
     // lens / color
-    'lensDistortion', 'invert',
+    'lensDistortion', 'temporalAberration', 'invert',
     // quantize / dither / glyph
     'posterize', 'dither', 'glyphMap',
     // CRT
