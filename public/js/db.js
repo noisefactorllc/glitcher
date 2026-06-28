@@ -56,9 +56,3 @@ export async function loadAllCaptures() {
         req.onerror = () => reject(req.error)
     })
 }
-
-export async function getMaxId() {
-    const captures = await loadAllCaptures()
-    if (captures.length === 0) return 0
-    return Math.max(...captures.map(c => c.id))
-}

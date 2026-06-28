@@ -10,13 +10,19 @@
  *   paramSpecs    — per-param spec for lerp + emit:
  *                     { type: 'float'|'int', min, max }
  *                     { type: 'choice', choices: ['a','b',...] }   discrete snap
- *   liveTunable   — subset of param names that can be tweaked via
- *                   applyStepParameterValues without a recompile. (Anything
- *                   outside this list forces a recompile when changed.)
+ *   liveTunable   — params intended to be tweakable via
+ *                   applyStepParameterValues without a recompile. Descriptive
+ *                   metadata only today: the app pushes every param live (see
+ *                   EffectStack.buildLiveParams) and recompiles only on
+ *                   structural stack changes — add/remove/reorder/replace —
+ *                   never per-param. Kept as a guide should a future param
+ *                   ever genuinely require a recompile.
  *   tagline       — one-line vibe blurb for the picker
  *
  * Ranges below are verified against
  *   /noisemaker/shaders/effects/filter/<effect>/definition.js
+ * except `glitch` and `lensDistortion`, which live under
+ *   /noisemaker/shaders/effects/classicNoisedeck/<effect>/definition.js
  */
 
 const randInt = (min, max) => Math.floor(min + Math.random() * (max - min + 1))

@@ -6,7 +6,7 @@
  * Supports thumbnail click (download), and delete.
  */
 
-import { saveCapture, deleteCapture, loadAllCaptures, getMaxId } from './db.js'
+import { saveCapture, deleteCapture, loadAllCaptures } from './db.js'
 
 const FILENAME_PREFIX = 'glitchin-out'
 
@@ -23,7 +23,10 @@ export class Gallery {
     async init() {
         try {
             const saved = await loadAllCaptures()
-            this._nextId = (await getMaxId()) + 1
+            // Derive nextId from the records we just loaded rather than doing a
+            // second full store scan (which would re-deserialize every
+            // photo/video blob again on boot).
+            this._nextId = saved.reduce((max, c) => Math.max(max, c.id), 0) + 1
             for (const capture of saved) {
                 this._captures.push(capture)
                 this._addThumbElement(capture)
@@ -88,7 +91,11 @@ export class Gallery {
         thumb.title = `${capture.type === 'photo' ? 'Photo' : 'Video'} ${capture.id}`
 
         if (capture.type === 'video') {
-            thumb.style.border = '2px solid var(--accent-magenta)'
+            // --hf-red is the app's "video" accent (shutter video-mode,
+            // recording dot). The old --accent-magenta token was dropped in
+            // the handfish migration, which left this border invalid
+            // (border-style fell back to none → no border at all).
+            thumb.style.border = '2px solid var(--hf-red)'
         }
 
         thumb.addEventListener('click', () => this.download(capture))

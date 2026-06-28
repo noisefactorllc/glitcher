@@ -39,6 +39,21 @@ export class GlitcherRenderer {
         this._animRAF = null
         this._currentDsl = ''
         this._liveParams = {}
+        // Last imageSize pushed to step_0, so the per-frame upload loop only
+        // re-pushes the uniform when the dimensions actually change (or after a
+        // recompile, which resets step uniforms — see _invalidateImageSize).
+        this._lastImageW = -1
+        this._lastImageH = -1
+    }
+
+    /**
+     * Force the next _uploadSourceTexture() to re-push step_0's imageSize.
+     * Call after anything that resets the program's step uniforms (compile)
+     * or changes the source dimensions (resize).
+     */
+    _invalidateImageSize() {
+        this._lastImageW = -1
+        this._lastImageH = -1
     }
 
     async init() {
@@ -77,6 +92,9 @@ export class GlitcherRenderer {
         await this._renderer.compile(dsl)
         this._renderer.start()
         this._applyLiveParams()
+        // A fresh compile rebuilds the program, resetting step_0's imageSize
+        // uniform — force the upload below to re-push it.
+        this._invalidateImageSize()
         this._uploadSourceTexture()
         this._startLoop()
     }
@@ -111,7 +129,13 @@ export class GlitcherRenderer {
         if (this._sourceKind === 'video' && this._source.readyState < 2) return
 
         this._renderer.updateTextureFromSource?.('imageTex_step_0', this._source, { flipY: false })
-        this._renderer.applyStepParameterValues?.({ step_0: { imageSize: [this.width, this.height] } })
+        // imageSize only changes on resize/recompile, so skip the redundant
+        // per-frame uniform push when it hasn't moved since the last upload.
+        if (this.width !== this._lastImageW || this.height !== this._lastImageH) {
+            this._renderer.applyStepParameterValues?.({ step_0: { imageSize: [this.width, this.height] } })
+            this._lastImageW = this.width
+            this._lastImageH = this.height
+        }
     }
 
     _startLoop() {
@@ -125,6 +149,11 @@ export class GlitcherRenderer {
 
     resume() {
         if (!this._currentDsl) return
+        // No _invalidateImageSize() here: start()/stop() only toggle the render
+        // loop, not the compiled program, so step_0's imageSize uniform survives
+        // a visibility toggle. (A GL context loss while hidden would wipe it —
+        // along with the program and textures — but there's no context-restore
+        // path anywhere, so that's a pre-existing limitation, not one this adds.)
         this._renderer.start()
         this._uploadSourceTexture()
         this._startLoop()
@@ -141,6 +170,7 @@ export class GlitcherRenderer {
     resize(width, height) {
         this.width = width
         this.height = height
+        this._invalidateImageSize()
         this._renderer.resize?.(width, height)
     }
 

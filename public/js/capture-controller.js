@@ -28,6 +28,7 @@ export class CaptureController {
         this._lock = lock
         this._mode = 'photo' // 'photo' | 'video'
         this._recording = null
+        this._stopping = false
         this._timerInterval = null
     }
 
@@ -76,6 +77,9 @@ export class CaptureController {
     }
 
     _toggleVideo() {
+        // Ignore shutter taps while a stop is mid-flush — otherwise a quick
+        // double-tap-to-stop would fall through and start a new recording.
+        if (this._stopping) return
         if (this._recording) this._stopRecording()
         else this._startRecording()
     }
@@ -95,14 +99,27 @@ export class CaptureController {
 
     async _stopRecording() {
         if (!this._recording) return
-        clearInterval(this._timerInterval)
-        const blob = await this._recording.stop()
+        // Clear the handle synchronously and gate re-entry (_stopping) so a
+        // second shutter press during the async stop() can't stop the same
+        // recorder twice (throws) or double-save the clip.
+        const recording = this._recording
         this._recording = null
+        this._stopping = true
+        clearInterval(this._timerInterval)
 
+        // Reset the recording UI immediately — the user asked to stop.
         document.getElementById('shutter-btn').classList.remove('recording')
         document.getElementById('recording-status').classList.add('hidden')
         document.getElementById('recording-timer').textContent = '0:00'
 
+        let blob
+        try {
+            blob = await recording.stop()
+        } finally {
+            // Re-open the shutter once the flush is done; the gallery save
+            // below is independent and shouldn't block starting a new clip.
+            this._stopping = false
+        }
         const capture = await this._gallery.add('video', blob, this._canvas)
         this._gallery.download(capture)
         console.log(`[Glitcher] Video: ${(blob.size / 1024 / 1024).toFixed(1)}MB`)

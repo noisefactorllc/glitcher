@@ -23,28 +23,33 @@ Aims for the response *"yeah"* from a glitch-art person, not *"looks like an Ins
 
 ## Effects (glitch catalog)
 
-Glitch only — no spatial distortions, warps, twirls, lens displacements.
-"Lens effects" here means color/optical aberrations and light leaks, not
-camera-warp tricks.
+Glitch-forward. The catalog favors signal corruption, color/optical
+aberration, quantization, and analog texture over heavy spatial warps. The
+one warp on offer — `lensDistortion`'s optional barrel/pincushion
+`distortion` (and `glitch`'s) — is rolled sparingly (off most of the time)
+so it reads as a lens artifact, not a funhouse mirror.
+
+Listed in picker order (see `EFFECT_ORDER` in `effects.js`):
 
 | Effect | Vibe |
 | --- | --- |
-| `corrupt` | Datamosh — scanline data corruption |
-| `pixelSort` | Brightness-sorted glitch |
+| `glitch` | Chonky pixel tears + scanlines + snow |
+| `corrupt` | Scanline data corruption — datamosh |
+| `pixelSort` | Brightness-sorted pixel slip |
 | `scanlineError` | VHS horizontal tears |
-| `snow` | TV static |
-| `chromaticAberration` | RGB fringing |
-| `prismaticAberration` | Hue-rotating prism split |
+| `snow` | TV static — dead channel |
+| `lensDistortion` | Lens warp + RGB / prism aberration |
+| `temporalAberration` | Per-channel temporal frame delay — RGB time trails |
 | `invert` | Color inversion |
 | `posterize` | Color quantization |
 | `dither` | Bayer dither + retro palettes |
-| `glyphMap` | ASCII / glyph art |
+| `glyphMap` | ASCII / glyph art conversion |
 | `crt` | CRT phosphor + scanlines |
 | `convolutionFeedback` | Sharpen/blur feedback datamosh |
 | `edge` | Edge-detect outlines |
-| `sobel` | Classic Sobel edges |
+| `sobel` | Classic edge detection |
 | `glowingEdge` | Neon edge outlines |
-| `grain` | Film grain |
+| `grain` | Film grain texture |
 | `lightLeak` | Analog film burn |
 
 Each entry declares:
@@ -92,16 +97,16 @@ A SHARE button copies a `#s=...` URL to the clipboard that encodes the entire st
 
 A small set of curated multi-effect starting points that populate the stack as a starting state. They are not the API — the stack is.
 
-Datamosh • Mosh+ • Dead Tape • CRT • Slice • Static • Phantom • Edges • Negative • ASCII • Pico • Halftone • Lo-Fi • Neon
+Datamosh • Mosh+ • Classic • Dead Tape • CRT • Slice • Static • Phantom • Edges • Negative • ASCII • Pico • Halftone • Lo-Fi • Neon
 
 ## UI
 
-Layout (desktop):
+Layout — the control panel, top to bottom. On mobile this is the whole
+page (a single column below the stage). On desktop (≥901px) the same panel
+is a fixed 500px column to the *left* of the canvas, with the title bar
+spanning the top (landscape split, matching noisedeck).
 
 ```
-+-------------------------------------------+
-|             [Stage: full canvas]          |
-|                                           |
 +-------------------------------------------+
 | [GLITCHIFY]      [RE-ROLL ALL]  [SHARE]   |
 +-------------------------------------------+
@@ -112,7 +117,7 @@ Layout (desktop):
 +-------------------------------------------+
 | START  Datamosh • Dead Tape • CRT • …     |
 +-------------------------------------------+
-| [📷|🎥] [shutter] [upload] [filmstrip]    |
+| [Photo|Video] [mirror] · (shutter) · [upload] [camera] [film] |
 +-------------------------------------------+
 ```
 
@@ -121,8 +126,12 @@ Layout (desktop):
 - × removes the slot (recompile)
 - `+ ADD EFFECT` opens a picker of all effects
 - Starter chips replace the whole stack (recompile)
+- Bottom bar: mode toggle + mirror on the left, shutter centered, source
+  switchers (upload / camera, + flip when a second camera exists) and the
+  filmstrip on the right
 
-Mobile: stack rows keep their grid; starters scroll horizontally; the stack section can scroll vertically if it overflows.
+Mobile: the stage sits on top; stack rows keep their grid; starters scroll
+horizontally; the stack section can scroll vertically if it overflows.
 
 ## Keyboard
 
@@ -164,6 +173,7 @@ glitcher/
         ├── keyboard.js
         ├── lock.js
         ├── about-dialog.js
+        ├── handfish-theme.js   Runtime theme picker (Handfish themes)
         └── noisemaker/
             ├── index.js
             ├── bundle.js
