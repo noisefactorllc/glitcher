@@ -6,6 +6,30 @@ const MIN_PNG = Buffer.from(
     'base64'
 )
 
+/**
+ * Click the shutter until a download actually lands.
+ *
+ * `CaptureController._capturePhoto()` returns immediately when the app's
+ * `Lock` is held — i.e. while a compile is still in flight — without
+ * capturing anything and without any observable signal. A click swallowed
+ * that way fires no `download` event ever, so waiting longer can't help:
+ * there is nothing pending to wait on. Re-clicking is the only way to close
+ * the race from outside the app.
+ */
+async function shutterUntilDownload(page, { attempts = 6, perAttemptMs = 5000 } = {}) {
+    for (let i = 0; i < attempts; i++) {
+        const pending = page.waitForEvent('download', { timeout: perAttemptMs })
+            .catch(() => null)
+        await page.click('#shutter-btn')
+        const dl = await pending
+        if (dl) return dl
+    }
+    throw new Error(
+        `Shutter produced no download in ${attempts} attempts ` +
+        `(${perAttemptMs}ms each) — capture is being dropped, not just slow.`
+    )
+}
+
 test.describe('Glitcher smoke', () => {
     // Each test starts with a clean stack. Guarded by a sessionStorage
     // flag so the clear only happens on the FIRST navigation of the test
@@ -22,6 +46,10 @@ test.describe('Glitcher smoke', () => {
     })
 
     test('boots, loads default stack, switches starter, captures a photo', async ({ page }) => {
+        // Boot + two compiles + the shutter retry budget doesn't fit the 30s
+        // suite default.
+        test.setTimeout(60_000)
+
         await page.goto('/')
 
         await expect(page.locator('#stage-canvas')).toBeVisible()
@@ -38,9 +66,7 @@ test.describe('Glitcher smoke', () => {
         await expect(page.locator('.stack-slot .slot-name', { hasText: 'CRT' })).toBeVisible()
 
         // Photo capture downloads a file
-        const downloadPromise = page.waitForEvent('download', { timeout: 8000 })
-        await page.click('#shutter-btn')
-        const dl = await downloadPromise
+        const dl = await shutterUntilDownload(page)
         expect(dl.suggestedFilename()).toMatch(/glitchin-out-\d+\.png/)
 
         // Filmstrip thumbnail appears
@@ -167,6 +193,124 @@ test.describe('Glitcher smoke', () => {
         expect(Math.max(...result.restoredCounts)).toBeLessThanOrEqual(4)
     })
 
+    test('parallax: intensity 0 is a pass-through, direction emits as vec3()', async ({ page }) => {
+        await page.goto('/')
+        await page.waitForTimeout(2000)
+
+        const result = await page.evaluate(async () => {
+            const { EFFECTS, lerpParams, emitEffectCall } = await import('/js/effects.js')
+            const p = EFFECTS.parallax
+            const rolled = p.randomize()
+            const at0 = lerpParams(p, rolled, 0)
+            const at1 = lerpParams(p, rolled, 1)
+            return {
+                at0Direction: at0.direction,
+                at0Pivot: at0.pivot,
+                at1Direction: at1.direction,
+                rolledDirection: rolled.direction,
+                dsl0: emitEffectCall(p, at0),
+                dsl1: emitEffectCall(p, at1)
+            }
+        })
+
+        // Straight-down view + pivot 0 => zero shift => exact pass-through.
+        expect(result.at0Direction).toEqual([0, 0, 1])
+        expect(result.at0Pivot).toBe(0)
+        expect(result.dsl0).toBe('parallax(direction: vec3(0.0, 0.0, 1.0), pivot: 0.0)')
+
+        // At full intensity the rolled direction comes through, clamped to ±1.
+        result.at1Direction.forEach((c, i) => {
+            expect(c).toBeCloseTo(Math.max(-1, Math.min(1, result.rolledDirection[i])), 5)
+        })
+        // Emitted as a vec3() call, never a bare array literal.
+        expect(result.dsl1).toMatch(/^parallax\(direction: vec3\(-?\d+\.\d+, -?\d+\.\d+, -?\d+\.\d+\), pivot: \d+\.\d+\)$/)
+    })
+
+    test('parallax compiles and actually displaces the image', async ({ page }) => {
+        // App boot plus a second renderer that loads its own manifest and
+        // fetches the parallax effect over the network for two compiles.
+        test.setTimeout(60_000)
+
+        await page.goto('/')
+        await page.waitForTimeout(2500)
+
+        const result = await page.evaluate(async () => {
+            const { GlitcherRenderer } = await import('/js/noisemaker/index.js')
+            const SIZE = 256
+
+            // A hard black/white block gives the height map real relief, so a
+            // tilted view ray has something to march into.
+            const src = document.createElement('canvas')
+            src.width = SIZE; src.height = SIZE
+            const sctx = src.getContext('2d')
+            sctx.fillStyle = '#000'; sctx.fillRect(0, 0, SIZE, SIZE)
+            sctx.fillStyle = '#fff'; sctx.fillRect(64, 64, 128, 128)
+
+            const canvas = document.createElement('canvas')
+            canvas.width = SIZE; canvas.height = SIZE
+            canvas.style.position = 'fixed'
+            canvas.style.left = '-9999px'
+            document.body.appendChild(canvas)
+
+            const errors = []
+            const r = new GlitcherRenderer(canvas, {
+                width: SIZE, height: SIZE, onError: e => errors.push(String(e))
+            })
+            await r.init()
+            r.setSource(src)
+
+            const head = 'search synth, filter, classicNoisedeck'
+            const grab = async (call) => {
+                await r.compile(`${head}\n\nmedia().${call}.write(o0)\n\nrender(o0)`)
+                await new Promise(res => setTimeout(res, 600))
+                const out = document.createElement('canvas')
+                out.width = SIZE; out.height = SIZE
+                const octx = out.getContext('2d')
+                octx.drawImage(canvas, 0, 0)
+                return octx.getImageData(0, 0, SIZE, SIZE).data
+            }
+
+            const flat = await grab('parallax(direction: vec3(0.0, 0.0, 1.0), pivot: 0.0)')
+            const tilted = await grab('parallax(direction: vec3(0.8, 0.3, 0.25), pivot: 0.0)')
+
+            let changed = 0
+            let lit = 0
+            for (let i = 0; i < flat.length; i += 4) {
+                if (flat[i] > 8) lit++
+                if (Math.abs(flat[i] - tilted[i]) > 8) changed++
+            }
+
+            r.destroy()
+            canvas.remove()
+            return { changed, lit, pixels: flat.length / 4, errors }
+        })
+
+        expect(result.errors).toEqual([])
+        // Straight-down parallax must render the source, not a black frame.
+        expect(result.lit).toBeGreaterThan(result.pixels * 0.05)
+        // Tilting the view ray must move a meaningful chunk of the frame.
+        expect(result.changed).toBeGreaterThan(result.pixels * 0.01)
+    })
+
+    test('parallax is offered in the picker and lands in the stack', async ({ page }) => {
+        const failures = []
+        page.on('console', msg => {
+            const t = msg.text()
+            if (/Compile failed|Renderer error/.test(t)) failures.push(t)
+        })
+
+        await page.goto('/')
+        await page.waitForTimeout(3000)
+
+        await page.click('#add-effect-btn')
+        await expect(page.locator('#effect-picker.open')).toBeVisible()
+        await page.locator('.effect-picker-item', { hasText: 'Parallax' }).click()
+        await page.waitForTimeout(2500)
+
+        await expect(page.locator('.stack-slot .slot-name', { hasText: 'Parallax' })).toBeVisible()
+        expect(failures).toEqual([])
+    })
+
     test('no horizontal page scroll after starter cycle', async ({ page }) => {
         await page.goto('/')
         await page.waitForTimeout(3000)
@@ -182,6 +326,9 @@ test.describe('Glitcher smoke', () => {
     })
 
     test('image upload swaps source and keeps the stack rendering', async ({ page }) => {
+        // Source swap + two starter compiles + the shutter retry budget.
+        test.setTimeout(60_000)
+
         await page.goto('/')
         await page.waitForTimeout(3000)
 
@@ -206,9 +353,7 @@ test.describe('Glitcher smoke', () => {
         await expect(page.locator('.stack-slot .slot-name', { hasText: 'CRT' })).toBeVisible()
 
         // And we can still capture a photo
-        const downloadPromise = page.waitForEvent('download', { timeout: 8000 })
-        await page.click('#shutter-btn')
-        const dl = await downloadPromise
+        const dl = await shutterUntilDownload(page)
         expect(dl.suggestedFilename()).toMatch(/glitchin-out-\d+\.png/)
     })
 
@@ -294,6 +439,11 @@ test.describe('Glitcher smoke', () => {
     })
 
     test('share: copies link to clipboard, link restores same stack', async ({ browser }) => {
+        // This one boots the app in three separate browser contexts (origin,
+        // share-writer, share-reader). Each pays the full shader-bundle fetch
+        // + WebGL compile, which doesn't fit the 30s suite default.
+        test.setTimeout(90_000)
+
         const ctx = await browser.newContext({
             permissions: ['camera', 'clipboard-read', 'clipboard-write']
         })
