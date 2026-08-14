@@ -176,7 +176,11 @@ export class GlitcherRenderer {
 
     destroy() {
         this.stop()
-        this._renderer.destroy?.()
+        // CanvasRenderer exposes `dispose()`, not `destroy()` — calling the
+        // latter optionally-chained silently no-oped and leaked the GL context.
+        // dispose() is async; teardown failure shouldn't reject into the caller.
+        Promise.resolve(this._renderer.dispose?.()).catch(e =>
+            console.warn('[Glitcher] Renderer dispose failed:', e))
         this._source = null
     }
 }

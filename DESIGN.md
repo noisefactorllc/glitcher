@@ -25,9 +25,12 @@ Aims for the response *"yeah"* from a glitch-art person, not *"looks like an Ins
 
 Glitch-forward. The catalog favors signal corruption, color/optical
 aberration, quantization, and analog texture over heavy spatial warps. The
-one warp on offer — `lensDistortion`'s optional barrel/pincushion
-`distortion` (and `glitch`'s) — is rolled sparingly (off most of the time)
-so it reads as a lens artifact, not a funhouse mirror.
+lens warps on offer — `lensDistortion`'s optional barrel/pincushion
+`distortion`, and `glitch`'s — are rolled sparingly (off most of the time)
+so they read as a lens artifact, not a funhouse mirror. `parallax` is the
+one displacement warp, and it earns its place by being driven entirely by
+the image's own luminosity: it reads as a depth/displacement glitch rather
+than a geometric distortion of the frame.
 
 Listed in picker order (see `EFFECT_ORDER` in `effects.js`):
 
@@ -39,6 +42,7 @@ Listed in picker order (see `EFFECT_ORDER` in `effects.js`):
 | `scanlineError` | VHS horizontal tears |
 | `snow` | TV static — dead channel |
 | `lensDistortion` | Lens warp + RGB / prism aberration |
+| `parallax` | Pseudo-3D relief — bright pixels lean off dark ones |
 | `temporalAberration` | Per-channel temporal frame delay — RGB time trails |
 | `invert` | Color inversion |
 | `posterize` | Color quantization |
@@ -57,6 +61,8 @@ Each entry declares:
 - `defaults` — neutral / barely-on parameter values (the value at intensity=0)
 - `randomize()` — returns a rolled snapshot of params (the value at intensity=100)
 - `paramSpecs` — per-param `{ type, min, max }` for safe lerp + clamping
+  (`float` / `int` / `vec3`, plus `choice` for discrete enum params; `vec3`
+  lerps and clamps component-wise and emits as a DSL `vec3(x, y, z)` call)
 
 ## Stack
 

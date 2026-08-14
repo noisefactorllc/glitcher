@@ -9,6 +9,7 @@
  *   randomize()   — returns a rolled snapshot of params (the value at intensity=100)
  *   paramSpecs    — per-param spec for lerp + emit:
  *                     { type: 'float'|'int', min, max }
+ *                     { type: 'vec3', min, max }                   per-component
  *                     { type: 'choice', choices: ['a','b',...] }   discrete snap
  *   liveTunable   — params intended to be tweakable via
  *                   applyStepParameterValues without a recompile. Descriptive
@@ -44,6 +45,8 @@ const randPickN = (arr, n) => {
 const F = (min, max) => ({ type: 'float', min, max })
 const I = (min, max) => ({ type: 'int', min, max })
 const C = (...choices) => ({ type: 'choice', choices })
+/** vec3 param: `min`/`max` clamp every component. Lerps component-wise. */
+const V3 = (min, max) => ({ type: 'vec3', min, max })
 
 export const EFFECTS = {
 
@@ -160,6 +163,34 @@ export const EFFECTS = {
             speed: F(-100, 100)
         },
         liveTunable: ['shape', 'distortion', 'mode', 'aberration', 'hueRotation', 'hueRange', 'saturation', 'passthru', 'vignetteAmt', 'speed']
+    },
+
+    parallax: {
+        id: 'parallax',
+        displayName: 'Parallax',
+        tagline: 'Pseudo-3D relief — bright pixels lean off dark ones',
+        // `heightMap` is a surface param and is deliberately never emitted, so
+        // it stays at its `inputTex` default: the image is its own height map.
+        // `direction` straight down (0,0,1) produces zero shift, which makes
+        // intensity 0 an exact pass-through.
+        defaults: { direction: [0, 0, 1], pivot: 0 },
+        randomize: () => {
+            // Roll a viewing azimuth + how far it tips off straight-down. The
+            // shader normalizes `direction`, so what matters is the ratio of
+            // the xy tilt to z — a small z is a glancing angle, i.e. big shift.
+            const azimuth = randFloat(0, Math.PI * 2)
+            const tilt = randFloat(0.4, 1.0)
+            return {
+                direction: [
+                    Math.cos(azimuth) * tilt,
+                    Math.sin(azimuth) * tilt,
+                    randFloat(0.25, 0.8)
+                ],
+                pivot: randFloat(0, 1)
+            }
+        },
+        paramSpecs: { direction: V3(-1, 1), pivot: F(0, 1) },
+        liveTunable: ['direction', 'pivot']
     },
 
     glitch: {
@@ -393,8 +424,8 @@ export const EFFECTS = {
 export const EFFECT_ORDER = [
     // signal corruption
     'glitch', 'corrupt', 'pixelSort', 'scanlineError', 'snow',
-    // lens / color
-    'lensDistortion', 'temporalAberration', 'invert',
+    // lens / warp / color
+    'lensDistortion', 'parallax', 'temporalAberration', 'invert',
     // quantize / dither / glyph
     'posterize', 'dither', 'glyphMap',
     // CRT
@@ -414,8 +445,9 @@ export function getEffect(id) {
 
 /**
  * Interpolate from defaults toward rolled by t ∈ [0,1], honoring per-param
- * spec. Continuous (int/float) params lerp + clamp. Choice params snap:
- * at t=0 they return the default; at any t>0 they return the rolled value.
+ * spec. Continuous (int/float/vec3) params lerp + clamp — vec3 component-wise.
+ * Choice params snap: at t=0 they return the default; at any t>0 they return
+ * the rolled value.
  */
 export function lerpParams(effect, rolled, t) {
     const out = {}
@@ -425,6 +457,25 @@ export function lerpParams(effect, rolled, t) {
         const b = rolled[name] ?? a
         if (spec.type === 'choice') {
             out[name] = (t > 0) ? b : a
+            continue
+        }
+        if (spec.type === 'vec3') {
+            // A vec3 spec requires an array default — substituting a zero
+            // vector would quietly become a degenerate direction (and for
+            // parallax, a silent pass-through), so mis-authored catalog
+            // entries fail loudly instead.
+            if (!Array.isArray(a)) {
+                throw new Error(`vec3 param '${name}' on ${effect.id} needs an array default`)
+            }
+            // A saved snapshot from an older catalog may be missing or short;
+            // those components fall back to the default's.
+            const aV = a
+            const bV = Array.isArray(b) ? b : aV
+            out[name] = aV.map((aC, i) => {
+                const bC = typeof bV[i] === 'number' ? bV[i] : aC
+                const v = aC + (bC - aC) * t
+                return Math.max(spec.min, Math.min(spec.max, v))
+            })
             continue
         }
         const aN = a ?? 0
@@ -437,12 +488,19 @@ export function lerpParams(effect, rolled, t) {
     return out
 }
 
+/** Format a float as a DSL number literal (always keeps a decimal point). */
+function formatFloat(value) {
+    if (Number.isInteger(value)) return value.toFixed(1)
+    return value.toFixed(3).replace(/0+$/, '').replace(/\.$/, '.0')
+}
+
 /** Format a single param value as a DSL literal. */
 function formatLiteral(value, spec) {
     if (spec.type === 'choice') return String(value)   // unquoted name token
     if (spec.type === 'int') return String(Math.round(value))
-    if (Number.isInteger(value)) return value.toFixed(1)
-    return value.toFixed(3).replace(/0+$/, '').replace(/\.$/, '.0')
+    // The DSL takes vectors as a vec3() call, not a bare array literal.
+    if (spec.type === 'vec3') return `vec3(${value.map(formatFloat).join(', ')})`
+    return formatFloat(value)
 }
 
 /**
