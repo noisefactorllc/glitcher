@@ -20,13 +20,14 @@ export class CaptureController {
      * @param {object} opts
      * @param {HTMLCanvasElement} opts.canvas
      * @param {{ add: function, download: function }} opts.gallery
-     * @param {{ acquire: function, release: function, isHeld: function }} opts.lock
+     * @param {{ acquireWhenFree: function, release: function }} opts.lock
      */
     constructor({ canvas, gallery, lock }) {
         this._canvas = canvas
         this._gallery = gallery
         this._lock = lock
         this._mode = 'photo' // 'photo' | 'video'
+        this._photoPending = false
         this._recording = null
         this._stopping = false
         this._timerInterval = null
@@ -62,8 +63,9 @@ export class CaptureController {
     }
 
     async _capturePhoto() {
-        if (this._lock.isHeld()) return
-        this._lock.acquire()
+        if (this._photoPending) return
+        this._photoPending = true
+        await this._lock.acquireWhenFree()
         try {
             const blob = await capturePhoto(this._canvas, { countdown: false })
             const capture = await this._gallery.add('photo', blob, this._canvas)
@@ -73,6 +75,7 @@ export class CaptureController {
             console.error('[Glitcher] Photo capture failed:', err)
         } finally {
             this._lock.release()
+            this._photoPending = false
         }
     }
 

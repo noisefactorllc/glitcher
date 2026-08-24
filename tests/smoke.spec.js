@@ -6,28 +6,32 @@ const MIN_PNG = Buffer.from(
     'base64'
 )
 
-/**
- * Click the shutter until a download actually lands.
- *
- * `CaptureController._capturePhoto()` returns immediately when the app's
- * `Lock` is held — i.e. while a compile is still in flight — without
- * capturing anything and without any observable signal. A click swallowed
- * that way fires no `download` event ever, so waiting longer can't help:
- * there is nothing pending to wait on. Re-clicking is the only way to close
- * the race from outside the app.
- */
-async function shutterUntilDownload(page, { attempts = 6, perAttemptMs = 5000 } = {}) {
-    for (let i = 0; i < attempts; i++) {
-        const pending = page.waitForEvent('download', { timeout: perAttemptMs })
-            .catch(() => null)
-        await page.click('#shutter-btn')
-        const dl = await pending
-        if (dl) return dl
-    }
-    throw new Error(
-        `Shutter produced no download in ${attempts} attempts ` +
-        `(${perAttemptMs}ms each) — capture is being dropped, not just slow.`
-    )
+async function installCaptureHarness(page) {
+    await page.goto('/')
+    await page.evaluate(async () => {
+        const [{ CaptureController }, { Gallery }, { Lock }] = await Promise.all([
+            import('/js/capture-controller.js'),
+            import('/js/gallery.js'),
+            import('/js/lock.js'),
+        ])
+
+        const canvas = document.createElement('canvas')
+        canvas.width = 2
+        canvas.height = 2
+        canvas.getContext('2d').fillRect(0, 0, 2, 2)
+
+        const filmstrip = document.createElement('div')
+        const gallery = new Gallery(filmstrip)
+        const lock = new Lock()
+        const controller = new CaptureController({ canvas, gallery, lock })
+        const shutter = document.createElement('button')
+        shutter.id = 'capture-race-shutter'
+        shutter.addEventListener('click', () => controller.trigger())
+
+        document.body.append(canvas, filmstrip, shutter)
+        lock.acquire()
+        window.__captureHarness = { gallery, lock }
+    })
 }
 
 test.describe('Glitcher smoke', () => {
@@ -45,11 +49,134 @@ test.describe('Glitcher smoke', () => {
         })
     })
 
-    test('boots, loads default stack, switches starter, captures a photo', async ({ page }) => {
-        // Boot + two compiles + the shutter retry budget doesn't fit the 30s
-        // suite default.
-        test.setTimeout(60_000)
+    test('one photo shutter click waits for the renderer lock', async ({ page }) => {
+        await installCaptureHarness(page)
 
+        const pendingDownload = page.waitForEvent('download', { timeout: 1500 })
+        await page.click('#capture-race-shutter')
+        await page.waitForTimeout(100)
+        expect(await page.evaluate(() => window.__captureHarness.gallery.count)).toBe(0)
+
+        await page.evaluate(() => window.__captureHarness.lock.release())
+        const download = await pendingDownload
+
+        expect(download.suggestedFilename()).toBe('glitchin-out-1.png')
+        expect(await page.evaluate(() => window.__captureHarness.gallery.count)).toBe(1)
+    })
+
+    test('lock hands eventual acquisitions off in FIFO order', async ({ page }) => {
+        await page.goto('/')
+
+        const result = await page.evaluate(async () => {
+            const { Lock } = await import('/js/lock.js')
+            const lock = new Lock()
+            const order = []
+            const held = []
+            lock.acquire()
+            const first = lock.acquireWhenFree().then(() => {
+                order.push('first')
+                held.push(lock.isHeld())
+                lock.release()
+            })
+            const second = lock.acquireWhenFree().then(() => {
+                order.push('second')
+                held.push(lock.isHeld())
+                lock.release()
+            })
+            lock.release()
+            await Promise.all([first, second])
+
+            let finishWith
+            const withBody = new Promise(resolve => { finishWith = resolve })
+            const withRun = lock.with(async () => {
+                order.push('with')
+                await withBody
+            })
+            const afterWith = lock.acquireWhenFree().then(() => {
+                order.push('after-with')
+                held.push(lock.isHeld())
+                lock.release()
+            })
+            finishWith()
+            const withResult = await withRun
+            await afterWith
+
+            return { order, held, withResult, finalHeld: lock.isHeld() }
+        })
+
+        expect(result).toEqual({
+            order: ['first', 'second', 'with', 'after-with'],
+            held: [true, true, true],
+            withResult: true,
+            finalHeld: false,
+        })
+    })
+
+    test('repeated shutter clicks coalesce while a photo waits', async ({ page }) => {
+        await installCaptureHarness(page)
+
+        const downloads = []
+        page.on('download', download => downloads.push(download))
+        await page.click('#capture-race-shutter', { clickCount: 3 })
+        await page.evaluate(() => window.__captureHarness.lock.release())
+        await expect.poll(() => downloads.length).toBeGreaterThan(0)
+        await page.waitForTimeout(500)
+
+        expect(downloads).toHaveLength(1)
+        expect(await page.evaluate(() => window.__captureHarness.gallery.count)).toBe(1)
+    })
+
+    test('structural change during photo capture eventually recompiles', async ({ page }) => {
+        test.setTimeout(60_000)
+        const messages = []
+        page.on('console', message => messages.push(message.text()))
+        await page.goto('/')
+        await expect.poll(
+            () => messages.some(message => message.includes('[Glitcher] Ready')),
+            { timeout: 20_000 }
+        ).toBe(true)
+
+        await page.evaluate(async () => {
+            const canvasProto = HTMLCanvasElement.prototype
+            const originalToBlob = canvasProto.toBlob
+            let releaseBlob
+            canvasProto.toBlob = function (callback, type, quality) {
+                window.__captureBlobBlocked = true
+                releaseBlob = () => originalToBlob.call(this, callback, type, quality)
+            }
+
+            const { GlitcherRenderer } = await import('/js/noisemaker/renderer.js')
+            const originalCompile = GlitcherRenderer.prototype.compile
+            GlitcherRenderer.prototype.compile = async function (dsl) {
+                const result = await originalCompile.call(this, dsl)
+                window.__structuralCompiles.push(dsl)
+                return result
+            }
+
+            window.__captureBlobBlocked = false
+            window.__structuralCompiles = []
+            window.__releaseCaptureBlob = () => releaseBlob()
+        })
+
+        const pendingDownload = page.waitForEvent('download', { timeout: 15_000 })
+        await page.click('#shutter-btn')
+        await expect.poll(() => page.evaluate(() => window.__captureBlobBlocked)).toBe(true)
+
+        await page.locator('.starter-chip', { hasText: 'CRT' }).evaluate(button => button.click())
+        await expect(page.locator('.stack-slot .slot-name', { hasText: 'CRT' })).toBeVisible()
+        expect(await page.evaluate(() => window.__structuralCompiles)).toEqual([])
+        await page.evaluate(() => window.__releaseCaptureBlob())
+        await pendingDownload
+
+        await expect.poll(
+            () => page.evaluate(() => window.__structuralCompiles.length),
+            { timeout: 5000 }
+        ).toBeGreaterThan(0)
+        const compiledDsl = await page.evaluate(() => window.__structuralCompiles.at(-1))
+        expect(compiledDsl).toContain('media().crt(')
+    })
+
+    test('boots, loads default stack, switches starter, captures a photo', async ({ page }) => {
         await page.goto('/')
 
         await expect(page.locator('#stage-canvas')).toBeVisible()
@@ -66,7 +193,9 @@ test.describe('Glitcher smoke', () => {
         await expect(page.locator('.stack-slot .slot-name', { hasText: 'CRT' })).toBeVisible()
 
         // Photo capture downloads a file
-        const dl = await shutterUntilDownload(page)
+        const pendingDownload = page.waitForEvent('download', { timeout: 15_000 })
+        await page.click('#shutter-btn')
+        const dl = await pendingDownload
         expect(dl.suggestedFilename()).toMatch(/glitchin-out-\d+\.png/)
 
         // Filmstrip thumbnail appears
@@ -326,9 +455,6 @@ test.describe('Glitcher smoke', () => {
     })
 
     test('image upload swaps source and keeps the stack rendering', async ({ page }) => {
-        // Source swap + two starter compiles + the shutter retry budget.
-        test.setTimeout(60_000)
-
         await page.goto('/')
         await page.waitForTimeout(3000)
 
@@ -353,7 +479,9 @@ test.describe('Glitcher smoke', () => {
         await expect(page.locator('.stack-slot .slot-name', { hasText: 'CRT' })).toBeVisible()
 
         // And we can still capture a photo
-        const dl = await shutterUntilDownload(page)
+        const pendingDownload = page.waitForEvent('download', { timeout: 15_000 })
+        await page.click('#shutter-btn')
+        const dl = await pendingDownload
         expect(dl.suggestedFilename()).toMatch(/glitchin-out-\d+\.png/)
     })
 

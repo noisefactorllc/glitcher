@@ -50,6 +50,7 @@ class GlitcherApp {
         // is in flight are merged — the lock-holder re-checks _dirty on
         // each loop iteration and recompiles once more if it changed.
         this._dirty = false
+        this._recompilePending = false
 
         this._cameraCount = null
 
@@ -147,8 +148,9 @@ class GlitcherApp {
      */
     async _recompile() {
         this._dirty = true
-        if (this._lock.isHeld()) return
-        this._lock.acquire()
+        if (this._recompilePending) return
+        this._recompilePending = true
+        await this._lock.acquireWhenFree()
         try {
             while (this._dirty) {
                 this._dirty = false
@@ -163,6 +165,7 @@ class GlitcherApp {
             }
         } finally {
             this._lock.release()
+            this._recompilePending = false
         }
     }
 
