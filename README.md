@@ -1,3 +1,8 @@
+<!-- repo-hero -->
+<a href="https://glitcher.noisefactor.io/"><img src="docs/hero.jpg" alt="Glitcher Glitch art powered by Noisemaker" width="100%"></a>
+
+<sub>Open source from <a href="https://noisefactor.io">Noise Factor</a> &middot; <a href="https://github.com/noisefactorllc">more projects</a></sub>
+
 # glitchin' out
 
 Glitch-art tool powered by the [Noisemaker](https://noisemaker.app/) shader engine.
