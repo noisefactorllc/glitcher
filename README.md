@@ -7,7 +7,8 @@
 
 Glitch-art tool powered by the [Noisemaker](https://noisemaker.app/) shader engine.
 
-Build a stack of glitch effects — datamosh, pixel sort, scanline error, lens warp, snow, chromatic aberration, feedback — over a live camera or an uploaded image. Each slot has its own intensity slider and a dice button that re-rolls just that effect. GLITCHIFY rebuilds the whole stack at random.
+Build a stack of glitch effects over a live camera or an uploaded image.
+Effects include datamosh, pixel sort, scanline error, lens warp, snow, chromatic aberration, and feedback. Each slot has its own intensity slider and a dice button that re-rolls just that effect. GLITCHIFY rebuilds the whole stack at random.
 
 ## Features
 
