@@ -5,6 +5,8 @@
 
 # glitchin' out
 
+<img src="public/logo.svg" alt="glitchin’ out logo" width="96" height="96">
+
 Glitch-art tool powered by the [Noisemaker](https://noisemaker.app/) shader engine.
 
 Build a stack of glitch effects over a live camera or an uploaded image.

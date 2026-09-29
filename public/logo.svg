@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="currentColor">
+  <style>
+    :root { color: #161616; }
+    @media (prefers-color-scheme: dark) { :root { color: #fff; } }
+  </style>
+  <path d="M18 18h72v18H36v12H18ZM30 48h18v24H30ZM90 48h18v24H90ZM18 72h18v12h54v18H18Z"/><path d="M72 18h18v30H72ZM72 72h18v30H72Z"/>
+</svg>
