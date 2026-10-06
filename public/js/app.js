@@ -294,11 +294,17 @@ class GlitcherApp {
 
     // ============================================================
     // Source switching (camera ↔ image upload)
+    //
+    // Each source switch serializes on the renderer lock instead of
+    // bailing when it's busy: a photo capture or a recompile (network
+    // shader loads can stretch it to seconds) may hold the lock, and
+    // silently dropping the user's click lost their request with no
+    // feedback. The lock is FIFO, so queued switches run in the order
+    // requested and the last one wins.
     // ============================================================
 
     async _useUploadedImage(file) {
-        if (this._lock.isHeld()) return
-        this._lock.acquire()
+        await this._lock.acquireWhenFree()
         try {
             await this._source.useImage(file)
             this._resizeForSource()
@@ -318,8 +324,7 @@ class GlitcherApp {
     }
 
     async _useCamera() {
-        if (this._lock.isHeld()) return
-        this._lock.acquire()
+        await this._lock.acquireWhenFree()
         try {
             if (!this._source.cameraActive) await this._source.startCamera()
             else await this._source.resumeCamera()
@@ -342,8 +347,7 @@ class GlitcherApp {
     }
 
     async _switchCamera() {
-        if (this._lock.isHeld()) return
-        this._lock.acquire()
+        await this._lock.acquireWhenFree()
         try {
             await this._source.switchFacingMode()
             this._renderer.setSource(this._source.element)

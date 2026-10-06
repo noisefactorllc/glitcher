@@ -52,7 +52,10 @@ test.describe('Glitcher smoke', () => {
     test('one photo shutter click waits for the renderer lock', async ({ page }) => {
         await installCaptureHarness(page)
 
-        const pendingDownload = page.waitForEvent('download', { timeout: 1500 })
+        // The lock-ordering assertions are the count checks below; the
+        // download wait only bounds post-release latency, which stretches
+        // well past 1.5s under software WebGL.
+        const pendingDownload = page.waitForEvent('download', { timeout: 10_000 })
         await page.click('#capture-race-shutter')
         await page.waitForTimeout(100)
         expect(await page.evaluate(() => window.__captureHarness.gallery.count)).toBe(0)
@@ -485,6 +488,52 @@ test.describe('Glitcher smoke', () => {
         expect(dl.suggestedFilename()).toMatch(/glitchin-out-\d+\.png/)
     })
 
+    test('image upload while the renderer lock is busy queues instead of dropping', async ({ page }) => {
+        test.setTimeout(60_000)
+        const messages = []
+        page.on('console', message => messages.push(message.text()))
+        await page.goto('/')
+        await expect.poll(
+            () => messages.some(message => message.includes('[Glitcher] Ready')),
+            { timeout: 20_000 }
+        ).toBe(true)
+
+        // Block photo capture inside toBlob so the app's lock stays held.
+        await page.evaluate(async () => {
+            const canvasProto = HTMLCanvasElement.prototype
+            const originalToBlob = canvasProto.toBlob
+            let releaseBlob
+            canvasProto.toBlob = function (callback, type, quality) {
+                window.__captureBlobBlocked = true
+                releaseBlob = () => originalToBlob.call(this, callback, type, quality)
+            }
+            window.__captureBlobBlocked = false
+            window.__releaseCaptureBlob = () => releaseBlob()
+        })
+
+        const pendingDownload = page.waitForEvent('download', { timeout: 15_000 })
+        await page.click('#shutter-btn')
+        await expect.poll(() => page.evaluate(() => window.__captureBlobBlocked)).toBe(true)
+
+        // With the lock held by the blocked capture, the upload must not be
+        // applied (lock ordering) — but it also must not be silently dropped.
+        await page.setInputFiles('#file-input', {
+            name: 'test.png',
+            mimeType: 'image/png',
+            buffer: MIN_PNG
+        })
+        await page.waitForTimeout(300)
+        await expect(page.locator('#upload-btn')).not.toHaveClass(/active/)
+        await expect(page.locator('#camera-btn')).toHaveClass(/active/)
+
+        await page.evaluate(() => window.__releaseCaptureBlob())
+        await pendingDownload
+
+        // The queued upload applies once the capture releases the lock.
+        await expect(page.locator('#upload-btn')).toHaveClass(/active/, { timeout: 15_000 })
+        await expect(page.locator('#camera-btn')).not.toHaveClass(/active/)
+    })
+
     test('camera flag toggles back on after viewing an uploaded image', async ({ page }) => {
         await page.goto('/')
         await page.waitForTimeout(3000)
@@ -504,6 +553,9 @@ test.describe('Glitcher smoke', () => {
     })
 
     test('rapid structural changes coalesce into final stack state', async ({ page }) => {
+        // Three starter clicks each pay a full shader recompile; software
+        // rendering stretches the boot + settle waits past the suite default.
+        test.setTimeout(90_000)
         await page.goto('/')
         await page.waitForTimeout(3000)
 
@@ -525,6 +577,9 @@ test.describe('Glitcher smoke', () => {
     })
 
     test('pointer drag reorders slots', async ({ page }) => {
+        // Real drag synthesis + recompile settle waits run long under
+        // software WebGL.
+        test.setTimeout(90_000)
         await page.goto('/')
         await page.waitForTimeout(3000)
 
@@ -570,7 +625,7 @@ test.describe('Glitcher smoke', () => {
         // This one boots the app in three separate browser contexts (origin,
         // share-writer, share-reader). Each pays the full shader-bundle fetch
         // + WebGL compile, which doesn't fit the 30s suite default.
-        test.setTimeout(90_000)
+        test.setTimeout(150_000)
 
         const ctx = await browser.newContext({
             permissions: ['camera', 'clipboard-read', 'clipboard-write']
