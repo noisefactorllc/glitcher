@@ -284,6 +284,24 @@ test.describe('Glitcher smoke', () => {
         await expect(page.locator('.stack-slot .slot-dice.rolling').first()).toBeVisible()
     })
 
+    test('keyboard: Ctrl/Cmd/Alt combos are left to the browser', async ({ page }) => {
+        await page.goto('/')
+        await page.waitForTimeout(3000)
+
+        // Ctrl+R and Cmd+R are browser reload shortcuts — the app must not
+        // hijack them into a re-roll (the old handler preventDefault'ed them).
+        await page.locator('body').focus()
+        await page.keyboard.press('Control+r')
+        await page.keyboard.press('Meta+r')
+        await page.keyboard.press('Alt+r')
+        await page.waitForTimeout(500)
+        await expect(page.locator('.stack-slot .slot-dice.rolling')).toHaveCount(0)
+
+        // The bare key still drives the app action.
+        await page.keyboard.press('r')
+        await expect(page.locator('.stack-slot .slot-dice.rolling').first()).toBeVisible()
+    })
+
     test('RE-ROLL ALL button rolls every slot', async ({ page }) => {
         await page.goto('/')
         await page.waitForTimeout(3000)

@@ -8,7 +8,8 @@
  *   r        — re-roll all snapshots in current stack (keeps composition)
  *
  * Ignores key events that originate inside input/textarea/select so users
- * can type freely if a future feature adds a text field.
+ * can type freely if a future feature adds a text field, and ignores
+ * Ctrl/Cmd/Alt combos so browser shortcuts (reload, find, …) keep working.
  */
 
 const HANDLERS = {
@@ -20,7 +21,11 @@ const HANDLERS = {
 
 export function wireKeyboard(actions) {
     const handler = (e) => {
-        if (e.target.matches('input, textarea, select')) return
+        // Bare keys only: Ctrl/Cmd/Alt combos belong to the browser and OS
+        // (Cmd+R reload, Ctrl+G find-again, …) and must not be hijacked into
+        // app actions or have their default prevented.
+        if (e.ctrlKey || e.metaKey || e.altKey) return
+        if (e.target?.matches?.('input, textarea, select')) return
         const key = e.key.toLowerCase()
         const action = HANDLERS[key]
         if (!action) return
