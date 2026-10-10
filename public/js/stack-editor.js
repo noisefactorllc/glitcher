@@ -328,9 +328,6 @@ export class StackEditor {
             item.type = 'button'
             item.className = 'effect-picker-item'
             item.dataset.effectId = id
-            // The popover is a role="menu" (index.html); its children must be
-            // menuitems or the menu semantics don't hold for assistive tech.
-            item.setAttribute('role', 'menuitem')
             item.innerHTML =
                 `<span class="picker-name">${effect.displayName}</span>` +
                 `<span class="picker-tag">${effect.tagline}</span>`

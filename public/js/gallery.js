@@ -85,15 +85,25 @@ export class Gallery {
         wrapper.className = 'filmstrip-item'
         wrapper.dataset.id = capture.id
 
+        // The download action lives on a real button wrapping the img, so
+        // keyboard users can focus it and press Enter/Space to download.
+        // A bare non-focusable img with a click handler is mouse-only.
+        const thumbBtn = document.createElement('button')
+        thumbBtn.type = 'button'
+        thumbBtn.className = 'filmstrip-thumb-btn'
+        thumbBtn.title = `Download ${capture.type === 'photo' ? 'photo' : 'video'} ${capture.id}`
+
         const thumb = document.createElement('img')
         thumb.className = 'filmstrip-thumb'
         thumb.src = capture.thumbUrl
-        thumb.title = `${capture.type === 'photo' ? 'Photo' : 'Video'} ${capture.id}`
         // Meaningful accessible name: without an alt, screen readers fall
         // back to announcing the (opaque) data-URL filename.
         thumb.alt = capture.type === 'photo'
-            ? `Photo capture ${capture.id} — click to download`
-            : `Video capture ${capture.id} — click to download`
+            ? `Photo capture ${capture.id} — activate to download`
+            : `Video capture ${capture.id} — activate to download`
+        thumbBtn.appendChild(thumb)
+
+        thumbBtn.addEventListener('click', () => this.download(capture))
 
         if (capture.type === 'video') {
             // --hf-red is the app's "video" accent (shutter video-mode,
@@ -102,8 +112,6 @@ export class Gallery {
             // (border-style fell back to none → no border at all).
             thumb.style.border = '2px solid var(--hf-red)'
         }
-
-        thumb.addEventListener('click', () => this.download(capture))
 
         const deleteBtn = document.createElement('button')
         deleteBtn.className = 'filmstrip-delete'
@@ -120,7 +128,7 @@ export class Gallery {
             this._delete(capture.id)
         })
 
-        wrapper.appendChild(thumb)
+        wrapper.appendChild(thumbBtn)
         wrapper.appendChild(deleteBtn)
         this._container.appendChild(wrapper)
     }

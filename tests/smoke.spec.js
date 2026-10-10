@@ -686,24 +686,33 @@ test.describe('Glitcher smoke', () => {
         await ctx.close()
     })
 
-    test('effect picker exposes expanded state and menuitem roles', async ({ page }) => {
+    test('effect picker exposes expanded state matching its interaction', async ({ page }) => {
+        const messages = []
+        page.on('console', message => messages.push(message.text()))
         await page.goto('/')
-        await page.waitForTimeout(3000)
+        // Wait for control wiring to finish: a fixed timeout can click the
+        // trigger before its listener exists under load.
+        await expect.poll(
+            () => messages.some(message => message.includes('[Glitcher] Ready')),
+            { timeout: 30_000 }
+        ).toBe(true)
 
         const trigger = page.locator('#add-effect-btn')
         await expect(trigger).toHaveAttribute('aria-expanded', 'false')
+        await expect(trigger).toHaveAttribute('aria-haspopup', 'true')
         await trigger.click()
         await expect(page.locator('#effect-picker.open')).toBeVisible()
         await expect(trigger).toHaveAttribute('aria-expanded', 'true')
+        // Items are real buttons: natively focusable and Enter/Space activatable.
         await expect(page.locator('.effect-picker-item').first())
-            .toHaveAttribute('role', 'menuitem')
+            .toHaveAttribute('type', 'button')
 
         await page.keyboard.press('Escape')
         await expect(page.locator('#effect-picker.open')).toHaveCount(0)
         await expect(trigger).toHaveAttribute('aria-expanded', 'false')
     })
 
-    test('filmstrip thumbs and delete buttons carry accessible names', async ({ page }) => {
+    test('filmstrip thumb is a named button and downloads via keyboard', async ({ page }) => {
         await installCaptureHarness(page)
 
         const pendingDownload = page.waitForEvent('download', { timeout: 10_000 })
@@ -711,17 +720,30 @@ test.describe('Glitcher smoke', () => {
         await page.evaluate(() => window.__captureHarness.lock.release())
         await pendingDownload
 
+        const thumbBtn = page.locator('.filmstrip-thumb-btn').first()
+        await expect(thumbBtn).toBeVisible()
         const thumb = page.locator('.filmstrip-thumb').first()
-        await expect(thumb).toBeVisible()
         await expect(thumb).toHaveAttribute('alt', /Photo capture \d+/)
+        await expect(thumbBtn).toHaveAttribute('title', /Download photo \d+/)
+
+        // Keyboard operability: focus the button and activate it with Enter.
+        const keyboardDownload = page.waitForEvent('download', { timeout: 10_000 })
+        await thumbBtn.focus()
+        await page.keyboard.press('Enter')
+        await keyboardDownload
 
         const del = page.locator('.filmstrip-delete').first()
         await expect(del).toHaveAttribute('aria-label', /Delete photo \d+/)
     })
 
     test('share toast is a polite live region', async ({ page }) => {
+        const messages = []
+        page.on('console', message => messages.push(message.text()))
         await page.goto('/')
-        await page.waitForTimeout(3000)
+        await expect.poll(
+            () => messages.some(message => message.includes('[Glitcher] Ready')),
+            { timeout: 30_000 }
+        ).toBe(true)
 
         await page.click('#share-btn')
         const toast = page.locator('.glitch-toast')
