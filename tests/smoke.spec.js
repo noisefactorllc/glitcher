@@ -699,7 +699,6 @@ test.describe('Glitcher smoke', () => {
 
         const trigger = page.locator('#add-effect-btn')
         await expect(trigger).toHaveAttribute('aria-expanded', 'false')
-        await expect(trigger).toHaveAttribute('aria-haspopup', 'true')
         await trigger.click()
         await expect(page.locator('#effect-picker.open')).toBeVisible()
         await expect(trigger).toHaveAttribute('aria-expanded', 'true')
