@@ -73,6 +73,7 @@ export class StackEditor {
     static showGlitchPulse() {
         const overlay = document.createElement('div')
         overlay.className = 'glitch-pulse-overlay'
+        overlay.setAttribute('aria-hidden', 'true')
         document.body.appendChild(overlay)
         overlay.addEventListener('animationend', () => overlay.remove())
     }
@@ -327,6 +328,9 @@ export class StackEditor {
             item.type = 'button'
             item.className = 'effect-picker-item'
             item.dataset.effectId = id
+            // The popover is a role="menu" (index.html); its children must be
+            // menuitems or the menu semantics don't hold for assistive tech.
+            item.setAttribute('role', 'menuitem')
             item.innerHTML =
                 `<span class="picker-name">${effect.displayName}</span>` +
                 `<span class="picker-tag">${effect.tagline}</span>`
@@ -359,12 +363,14 @@ export class StackEditor {
     _openPicker() {
         document.getElementById('effect-picker').classList.add('open')
         document.getElementById('add-effect-btn').classList.add('active')
+        document.getElementById('add-effect-btn').setAttribute('aria-expanded', 'true')
         this._pickerOpen = true
     }
 
     _closePicker() {
         document.getElementById('effect-picker').classList.remove('open')
         document.getElementById('add-effect-btn').classList.remove('active')
+        document.getElementById('add-effect-btn').setAttribute('aria-expanded', 'false')
         this._pickerOpen = false
     }
 }

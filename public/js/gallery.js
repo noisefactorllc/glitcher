@@ -89,6 +89,11 @@ export class Gallery {
         thumb.className = 'filmstrip-thumb'
         thumb.src = capture.thumbUrl
         thumb.title = `${capture.type === 'photo' ? 'Photo' : 'Video'} ${capture.id}`
+        // Meaningful accessible name: without an alt, screen readers fall
+        // back to announcing the (opaque) data-URL filename.
+        thumb.alt = capture.type === 'photo'
+            ? `Photo capture ${capture.id} — click to download`
+            : `Video capture ${capture.id} — click to download`
 
         if (capture.type === 'video') {
             // --hf-red is the app's "video" accent (shutter video-mode,
@@ -103,6 +108,13 @@ export class Gallery {
         const deleteBtn = document.createElement('button')
         deleteBtn.className = 'filmstrip-delete'
         deleteBtn.textContent = '×'
+        // A bare '×' glyph is announced as "times" (or nothing); give the
+        // control a name that says what it deletes.
+        deleteBtn.title = 'Delete'
+        deleteBtn.setAttribute(
+            'aria-label',
+            `Delete ${capture.type === 'photo' ? 'photo' : 'video'} ${capture.id}`
+        )
         deleteBtn.addEventListener('click', (e) => {
             e.stopPropagation()
             this._delete(capture.id)

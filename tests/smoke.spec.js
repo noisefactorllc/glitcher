@@ -685,4 +685,48 @@ test.describe('Glitcher smoke', () => {
         await freshCtx.close()
         await ctx.close()
     })
+
+    test('effect picker exposes expanded state and menuitem roles', async ({ page }) => {
+        await page.goto('/')
+        await page.waitForTimeout(3000)
+
+        const trigger = page.locator('#add-effect-btn')
+        await expect(trigger).toHaveAttribute('aria-expanded', 'false')
+        await trigger.click()
+        await expect(page.locator('#effect-picker.open')).toBeVisible()
+        await expect(trigger).toHaveAttribute('aria-expanded', 'true')
+        await expect(page.locator('.effect-picker-item').first())
+            .toHaveAttribute('role', 'menuitem')
+
+        await page.keyboard.press('Escape')
+        await expect(page.locator('#effect-picker.open')).toHaveCount(0)
+        await expect(trigger).toHaveAttribute('aria-expanded', 'false')
+    })
+
+    test('filmstrip thumbs and delete buttons carry accessible names', async ({ page }) => {
+        await installCaptureHarness(page)
+
+        const pendingDownload = page.waitForEvent('download', { timeout: 10_000 })
+        await page.click('#capture-race-shutter')
+        await page.evaluate(() => window.__captureHarness.lock.release())
+        await pendingDownload
+
+        const thumb = page.locator('.filmstrip-thumb').first()
+        await expect(thumb).toBeVisible()
+        await expect(thumb).toHaveAttribute('alt', /Photo capture \d+/)
+
+        const del = page.locator('.filmstrip-delete').first()
+        await expect(del).toHaveAttribute('aria-label', /Delete photo \d+/)
+    })
+
+    test('share toast is a polite live region', async ({ page }) => {
+        await page.goto('/')
+        await page.waitForTimeout(3000)
+
+        await page.click('#share-btn')
+        const toast = page.locator('.glitch-toast')
+        await expect(toast).toBeVisible()
+        await expect(toast).toHaveAttribute('role', 'status')
+        await expect(toast).not.toBeEmpty()
+    })
 })

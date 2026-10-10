@@ -54,6 +54,7 @@ function showCountdown() {
 function showFlash() {
     const flash = document.createElement('div')
     flash.className = 'flash-overlay'
+    flash.setAttribute('aria-hidden', 'true')
     document.body.appendChild(flash)
     flash.addEventListener('animationend', () => flash.remove())
 }

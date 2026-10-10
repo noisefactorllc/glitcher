@@ -287,8 +287,11 @@ class GlitcherApp {
     _toast(message) {
         const el = document.createElement('div')
         el.className = 'glitch-toast'
-        el.textContent = message
+        // Polite live region: the region must be in the document before the
+        // text lands, or screen readers won't announce the message.
+        el.setAttribute('role', 'status')
         document.body.appendChild(el)
+        el.textContent = message
         el.addEventListener('animationend', () => el.remove())
     }
 
