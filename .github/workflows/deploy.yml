@@ -3,8 +3,7 @@ name: Deploy
 # Scaffold is the sole authority for glitcher deploys. This workflow
 # just fires the workflow_dispatch at scaffold's static-site-release,
 # which clones this repo at the pushed SHA, writes deployment-meta.json
-# into public/, and rsyncs public/ to
-# ~/sites/glitcher.noisefactor.io/content on nf-toronto.
+# into public/, and rsyncs public/ to the production web server.
 #
 # Keeping the SSH key + server IP on the scaffold side means this
 # public repo carries no deploy secrets — only the EHSRE app private
