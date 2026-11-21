@@ -20,7 +20,9 @@ const PORT = Number(process.env.GLITCHER_PORT) || 3007
 export default defineConfig({
     testDir: './tests',
     timeout: 30000,
+    forbidOnly: !!process.env.CI,
     use: {
+        headless: true,
         baseURL: `http://localhost:${PORT}`,
         permissions: ['camera'],
         launchOptions: {
@@ -31,8 +33,8 @@ export default defineConfig({
         },
     },
     webServer: {
-        command: `npx http-server public -p ${PORT} -c-1`,
+        command: `node node_modules/http-server/bin/http-server public -p ${PORT} -c-1`,
         port: PORT,
-        reuseExistingServer: true,
+        reuseExistingServer: !process.env.CI,
     },
 })

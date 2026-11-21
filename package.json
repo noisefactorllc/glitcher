@@ -14,7 +14,7 @@
     },
     "scripts": {
         "dev": "npx http-server public -p 3007 -c-1",
-        "test": "npx playwright test"
+        "test": "bash scripts/test"
     },
     "devDependencies": {
         "@playwright/test": "^1.58.2",

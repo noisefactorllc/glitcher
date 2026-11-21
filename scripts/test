@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+report_dir=$(mktemp -d)
+trap 'rm -rf "$report_dir"' EXIT
+PLAYWRIGHT_JSON_OUTPUT_NAME="$report_dir/report.json" \
+    node node_modules/@playwright/test/cli.js test --reporter=list,json "$@"
+
+node --input-type=module - "$report_dir/report.json" <<'JS'
+import { readFileSync } from 'node:fs'
+const { stats } = JSON.parse(readFileSync(process.argv[2], 'utf8'))
+if (!stats || !Number.isInteger(stats.expected) || stats.expected <= 0 ||
+    stats.unexpected !== 0 || stats.flaky !== 0 || stats.skipped !== 0) {
+    console.error('Test summary must report a nonempty suite without failures, flakes or skips.')
+    process.exitCode = 1
+}
+JS
